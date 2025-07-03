@@ -85,7 +85,41 @@ export const ExpenseLineChart: React.FC = () => {
     ],
   };
 
-  return <Line data={data} options={chartOptions} />;
+  const lineOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const value = context.parsed.y;
+            const formattedValue = value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            });
+            return `${context.dataset.label}: ${formattedValue}`;
+          }
+        }
+      }
+    },
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          callback: function(value: any) {
+            return value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            });
+          }
+        }
+      }
+    }
+  };
+
+  return <Line data={data} options={lineOptions} />;
 };
 
 export const CategoryPieChart: React.FC = () => {
@@ -116,6 +150,21 @@ export const CategoryPieChart: React.FC = () => {
   const pieOptions = {
     ...chartOptions,
     scales: undefined,
+    plugins: {
+      ...chartOptions.plugins,
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const value = context.parsed;
+            const formattedValue = value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            });
+            return `${context.label}: ${formattedValue}`;
+          }
+        }
+      }
+    }
   };
 
   return <Pie data={data} options={pieOptions} />;
@@ -170,5 +219,39 @@ export const MonthlyComparisonChart: React.FC = () => {
     ],
   };
 
-  return <Bar data={data} options={chartOptions} />;
+  const barOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      tooltip: {
+        callbacks: {
+          label: function(context: any) {
+            const value = context.parsed.y;
+            const formattedValue = value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            });
+            return `${context.dataset.label}: ${formattedValue}`;
+          }
+        }
+      }
+    },
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          callback: function(value: any) {
+            return value.toLocaleString('pt-BR', {
+              style: 'currency',
+              currency: 'BRL'
+            });
+          }
+        }
+      }
+    }
+  };
+
+  return <Bar data={data} options={barOptions} />;
 };

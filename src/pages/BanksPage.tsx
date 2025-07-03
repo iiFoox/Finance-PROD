@@ -11,7 +11,8 @@ const BanksPage: React.FC = () => {
     transactions, 
     selectedYear, 
     selectedMonth,
-    getBankInvoice 
+    getBankInvoice,
+    forceUpdateAllCreditCardTransactions
   } = useFinance();
   
   const [showBankModal, setShowBankModal] = useState(false);
@@ -178,13 +179,21 @@ const BanksPage: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Meus Bancos e Cartões</h2>
           <p className="text-gray-600 dark:text-gray-400">Gerencie seus bancos, cartões e faturas</p>
         </div>
-        <button
-          onClick={() => setShowBankModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Adicionar Banco</span>
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => forceUpdateAllCreditCardTransactions()}
+            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-lg font-medium hover:from-green-600 hover:to-emerald-700 transition-all duration-200 flex items-center space-x-2"
+          >
+            <span>Atualizar Faturas</span>
+          </button>
+          <button
+            onClick={() => setShowBankModal(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Adicionar Banco</span>
+          </button>
+        </div>
       </div>
 
       {banks.length === 0 ? (

@@ -2,12 +2,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
+type ErrorType = 'general' | 'wrong_password' | 'user_not_found' | 'invalid_credentials' | 'rate_limit' | 'network_error' | 'email_not_confirmed' | null;
+
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  signOut: () => Promise<void>;
+  updateProfile: (data: { name: string; avatar_url?: string }) => Promise<void>;
   isLoading: boolean;
+  error: string | null;
+  errorType: ErrorType;
+  clearError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +30,13 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<ErrorType>(null);
+
+  const clearError = () => {
+    setError(null);
+    setErrorType(null);
+  };
 
   useEffect(() => {
     // Verificar sessão atual
@@ -30,10 +44,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user ?? null);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Erro ao obter sessão:', error);
+      } catch (err) {
+        console.error('Erro ao obter sessão:', err);
         setUser(null);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -52,52 +66,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password: string): Promise<void> => {
     setIsLoading(true);
-    
+    clearError();
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { data, error: supabaseError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('Erro no login:', error.message);
-        
-        // Verificar se é erro de email não confirmado
-        if (error.message.includes('Email not confirmed') || 
-            error.message.includes('email_not_confirmed') ||
-            error.message.includes('signup_disabled')) {
-          return { 
-            success: false, 
-            error: 'email_not_confirmed'
-          };
-        }
-        
-        // Verificar se são credenciais inválidas
-        if (error.message.includes('Invalid login credentials') || 
-            error.message.includes('invalid_credentials')) {
-          return { 
-            success: false, 
-            error: 'invalid_credentials'
-          };
-        }
-        
-        return { 
-          success: false, 
-          error: error.message 
-        };
-      }
+      if (supabaseError) {
+        console.error('❌ SUPABASE: Erro no login:', supabaseError.message);
+        const errorMessage = supabaseError.message.toLowerCase();
 
-      if (data.user) {
+        let userFriendlyMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
+
+        if (errorMessage.includes('email not confirmed')) {
+          setErrorType('email_not_confirmed');
+          userFriendlyMessage = `Seu email (${email}) ainda não foi confirmado. Verifique sua caixa de entrada.`;
+        } else if (errorMessage.includes('invalid login credentials')) {
+          setErrorType('invalid_credentials');
+          userFriendlyMessage = 'Email ou senha incorretos. Verifique suas credenciais e tente novamente.';
+        } else {
+          setErrorType('general');
+          userFriendlyMessage = supabaseError.message;
+        }
+
+        setError(userFriendlyMessage);
+        throw new Error(userFriendlyMessage);
+      } else if (data.user) {
         setUser(data.user);
-        return { success: true };
+        clearError();
+      } else {
+        const errorMsg = 'Ocorreu um erro desconhecido durante o login.';
+        setErrorType('general');
+        setError(errorMsg);
+        throw new Error(errorMsg);
       }
-
-      return { success: false, error: 'Erro desconhecido' };
-    } catch (error) {
-      console.error('Erro no login:', error);
-      return { success: false, error: 'Erro de conexão' };
+    } catch (err: any) {
+      console.error('🔥 App: Erro no catch do login:', err);
+      
+      if (err.message && (err.message.includes('Email ou senha') || err.message.includes('email'))) {
+        throw err;
+      }
+      
+      const networkError = 'Erro de conexão. Verifique sua internet e tente novamente.';
+      setErrorType('network_error');
+      setError(networkError);
+      throw new Error(networkError);
     } finally {
       setIsLoading(false);
     }
@@ -160,8 +177,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const updateProfile = async (data: { name: string; avatar_url?: string }) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        data: {
+          name: data.name,
+          avatar_url: data.avatar_url,
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      throw error;
+    }
+  };
+
+  const value = {
+    user,
+    login,
+    isLoading,
+    error,
+    errorType,
+    clearError,
+    register,
+    logout,
+    signOut: logout,
+    updateProfile,
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

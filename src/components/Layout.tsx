@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useFinance } from '../contexts/FinanceContext';
 import { 
@@ -13,19 +14,21 @@ import {
   Menu,
   X,
   Landmark,
-  PiggyBank
+  PiggyBank,
+  Bitcoin
 } from 'lucide-react';
 import NotificationPanel from './NotificationPanel';
 import ChatBot from './ChatBot';
 
+
 interface LayoutProps {
   children: React.ReactNode;
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTabChange }) => {
-  const { user, logout } = useAuth();
+const Layout: React.FC<LayoutProps> = ({ children }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user, signOut } = useAuth();
   const { 
     selectedYear, 
     selectedMonth, 
@@ -39,12 +42,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
 
   const unreadCount = getUnreadNotificationsCount();
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'expenses', label: 'Transações', icon: CreditCard },
-    { id: 'banks', label: 'Bancos', icon: Landmark },
-    { id: 'budgets', label: 'Orçamentos', icon: Target },
-    { id: 'goals', label: 'Metas', icon: PiggyBank },
+  // Itens principais do menu
+  const mainMenuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Home, path: '/dashboard' },
+    { id: 'expenses', label: 'Transações', icon: CreditCard, path: '/expenses' },
+    { id: 'banks', label: 'Bancos', icon: Landmark, path: '/banks' },
+    { id: 'budgets', label: 'Orçamentos', icon: Target, path: '/budgets' },
+    { id: 'goals', label: 'Metas', icon: PiggyBank, path: '/goals' },
+    { id: 'investments', label: 'Investimentos', icon: Bitcoin, path: '/investments' },
+  ];
+
+  // Itens de usuário (ficarão na parte inferior)
+  const userMenuItems = [
+    { id: 'settings', label: 'Configurações', icon: Settings, path: '/settings' },
   ];
 
   const months = [
@@ -54,13 +64,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
 
   const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - 5 + i);
 
-  const handleTabChange = (tab: string) => {
-    onTabChange?.(tab);
+  const handleTabChange = (path: string) => {
+    navigate(path);
     setIsSidebarOpen(false);
   };
 
   const handleDateChange = (year: number, month: number) => {
     setSelectedDate(year, month);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
   };
 
   return (
@@ -69,19 +88,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 border-r border-slate-700 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between p-4 lg:p-6 border-b border-slate-700">
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <div className="w-8 h-8 lg:w-10 lg:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 lg:w-6 lg:h-6 text-white" />
+          <div className="h-16 flex items-center px-6 border-b border-slate-700">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-white" />
               </div>
-              <span className="text-lg lg:text-xl font-bold text-white">FinanceApp</span>
+              <span className="text-xl font-bold text-white">FinanceApp</span>
             </div>
-            <button 
-              onClick={() => setIsSidebarOpen(false)}
-              className="lg:hidden p-2 rounded-lg hover:bg-slate-700 text-gray-400 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
           </div>
 
           {/* Date Selectors */}
@@ -95,6 +108,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
                   value={selectedYear}
                   onChange={(e) => handleDateChange(parseInt(e.target.value), selectedMonth)}
                   className="w-full px-2 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-700 text-white"
+                  aria-label="Selecionar ano"
                 >
                   {years.map(year => (
                     <option key={year} value={year}>{year}</option>
@@ -109,6 +123,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
                   value={selectedMonth}
                   onChange={(e) => handleDateChange(selectedYear, parseInt(e.target.value))}
                   className="w-full px-2 py-1.5 lg:px-3 lg:py-2 text-xs lg:text-sm border border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-700 text-white"
+                  aria-label="Selecionar mês"
                 >
                   {months.map((month, index) => (
                     <option key={index} value={index}>{month}</option>
@@ -120,13 +135,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
 
           {/* Navigation */}
           <nav className="flex-1 px-3 lg:px-4 py-4 lg:py-6 space-y-1 lg:space-y-2">
-            {menuItems.map((item) => {
+            {mainMenuItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              const isActive = location.pathname === item.path;
               return (
                 <button
                   key={item.id}
-                  onClick={() => handleTabChange(item.id)}
+                  onClick={() => handleTabChange(item.path)}
                   className={`w-full flex items-center space-x-2 lg:space-x-3 px-3 py-2 lg:py-3 rounded-lg text-left transition-colors duration-200 text-sm lg:text-base ${
                     isActive 
                       ? 'bg-blue-600 text-white shadow-lg' 
@@ -144,7 +159,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
           <div className="p-3 lg:p-4 border-t border-slate-700">
             <div className="flex items-center space-x-2 lg:space-x-3 mb-3 lg:mb-4">
               <img 
-                src={`https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face`}
+                src={user?.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.user_metadata?.name || user?.email?.split('@')[0] || 'User')}&background=3b82f6&color=ffffff&size=40`}
                 alt="Avatar"
                 className="w-8 h-8 lg:w-10 lg:h-10 rounded-full object-cover"
               />
@@ -158,31 +173,35 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
               </div>
             </div>
             
-            <div className="space-y-1">
-              <button
-                onClick={() => handleTabChange('profile')}
-                className="w-full flex items-center space-x-2 lg:space-x-3 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg text-left text-gray-300 hover:bg-slate-700 hover:text-white transition-colors text-xs lg:text-sm"
-              >
-                <User className="w-3 h-3 lg:w-4 lg:h-4" />
-                <span>Perfil</span>
-              </button>
-              
-              <button
-                onClick={() => handleTabChange('settings')}
-                className="w-full flex items-center space-x-2 lg:space-x-3 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg text-left text-gray-300 hover:bg-slate-700 hover:text-white transition-colors text-xs lg:text-sm"
-              >
-                <Settings className="w-3 h-3 lg:w-4 lg:h-4" />
-                <span>Configurações</span>
-              </button>
-              
-              <button
-                onClick={logout}
-                className="w-full flex items-center space-x-2 lg:space-x-3 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg text-left text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors text-xs lg:text-sm"
-              >
-                <LogOut className="w-3 h-3 lg:w-4 lg:h-4" />
-                <span>Sair</span>
-              </button>
+            {/* Menu items de usuário */}
+            <div className="space-y-1 mb-3">
+              {userMenuItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleTabChange(item.path)}
+                    className={`w-full flex items-center space-x-2 lg:space-x-3 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg text-left transition-colors duration-200 text-xs lg:text-sm ${
+                      isActive 
+                        ? 'bg-blue-600 text-white shadow-lg' 
+                        : 'text-gray-300 hover:bg-slate-700 hover:text-white'
+                    }`}
+                  >
+                    <Icon className={`w-3 h-3 lg:w-4 lg:h-4 ${isActive ? 'text-white' : ''}`} />
+                    <span className="font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
+            
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center space-x-2 lg:space-x-3 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg text-left text-red-400 hover:bg-red-900/20 hover:text-red-300 transition-colors text-xs lg:text-sm"
+            >
+              <LogOut className="w-3 h-3 lg:w-4 lg:h-4" />
+              <span>Sair</span>
+            </button>
           </div>
         </div>
       </div>
@@ -190,40 +209,32 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
       {/* Main Content */}
       <div className="lg:ml-64">
         {/* Header */}
-        <header className="bg-slate-800 border-b border-slate-700 px-4 lg:px-6 py-3 lg:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 lg:space-x-4">
+        <header className="h-16 bg-slate-800 border-b border-slate-700">
+          <div className="h-full px-6 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
               <button
                 onClick={() => setIsSidebarOpen(true)}
                 className="lg:hidden p-2 rounded-lg hover:bg-slate-700 text-gray-400 hover:text-white transition-colors"
+                aria-label="Abrir menu lateral"
               >
                 <Menu className="w-5 h-5" />
               </button>
               <div>
-                <h1 className="text-lg lg:text-2xl font-bold text-white capitalize">
-                  {activeTab === 'dashboard' ? 'Dashboard' : 
-                   activeTab === 'expenses' ? 'Transações' :
-                   activeTab === 'banks' ? 'Bancos' :
-                   activeTab === 'budgets' ? 'Orçamentos' :
-                   activeTab === 'goals' ? 'Metas' :
-                   activeTab === 'profile' ? 'Perfil' :
-                   activeTab === 'settings' ? 'Configurações' : 'Dashboard'}
+                <h1 className="text-xl font-bold text-white">
+                  {[...mainMenuItems, ...userMenuItems].find(item => item.path === location.pathname)?.label || 'Dashboard'}
                 </h1>
-                <p className="text-xs lg:text-sm text-gray-400">
-                  {months[selectedMonth]} de {selectedYear}
-                </p>
               </div>
             </div>
-            
-            <div className="flex items-center space-x-2 lg:space-x-3">
-              <button 
-                onClick={() => setShowNotifications(true)}
-                className="relative p-2 rounded-lg hover:bg-slate-700 text-gray-400 hover:text-white transition-colors"
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 rounded-lg hover:bg-slate-700 text-gray-400 hover:text-white transition-colors relative"
+                aria-label="Notificações"
               >
-                <Bell className="w-4 h-4 lg:w-5 lg:h-5" />
+                <Bell className="w-5 h-5" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 lg:w-5 lg:h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
+                  <span className="absolute top-0 right-0 -mt-1 -mr-1 px-1.5 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full">
+                    {unreadCount}
                   </span>
                 )}
               </button>
@@ -231,31 +242,19 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab = 'dashboard', onTa
           </div>
         </header>
 
-        {/* Content */}
-        <main className="p-4 lg:p-6">
+        {/* Page Content */}
+        <main className="p-6">
           {children}
         </main>
       </div>
 
-      {/* Sidebar Overlay */}
-      {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <NotificationPanel isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
       )}
 
-      {/* Notifications Panel */}
-      <NotificationPanel 
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-      />
-
-      {/* ChatBot */}
-      <ChatBot 
-        isOpen={showChatBot}
-        onToggle={() => setShowChatBot(!showChatBot)}
-      />
+      {/* Chat Bot */}
+        <ChatBot isOpen={showChatBot} onToggle={() => setShowChatBot(!showChatBot)} />
     </div>
   );
 };

@@ -1,11 +1,14 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Shield, BarChart3, Target, CreditCard, PiggyBank, ArrowRight, CheckCircle } from 'lucide-react';
 
-interface LandingPageProps {
-  onGetStarted: () => void;
-}
+const LandingPage: React.FC = () => {
+  const navigate = useNavigate();
 
-const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+  const handleGetStarted = () => {
+    navigate('/login');
+  };
+
   const features = [
     {
       icon: BarChart3,
@@ -63,7 +66,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </div>
           </div>
           <button
-            onClick={onGetStarted}
+            onClick={handleGetStarted}
             className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-lg"
           >
             <span>Começar Agora</span>
@@ -86,14 +89,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={onGetStarted}
+                onClick={handleGetStarted}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2 shadow-2xl text-lg"
               >
                 <span>Criar Conta Grátis</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
               <button
-                onClick={onGetStarted}
+                onClick={handleGetStarted}
                 className="border-2 border-slate-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-slate-800 transition-all duration-200 text-lg"
               >
                 Ver Demonstração
@@ -159,7 +162,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               </div>
 
               <button
-                onClick={onGetStarted}
+                onClick={handleGetStarted}
                 className="mt-8 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-200 flex items-center space-x-2 shadow-lg"
               >
                 <span>Começar Gratuitamente</span>
@@ -222,7 +225,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             Junte-se a milhares de pessoas que já estão no controle de suas finanças
           </p>
           <button
-            onClick={onGetStarted}
+            onClick={handleGetStarted}
             className="bg-white text-blue-600 px-8 py-4 rounded-xl font-bold hover:bg-gray-100 transition-all duration-200 flex items-center space-x-2 mx-auto shadow-2xl text-lg"
           >
             <span>Criar Conta Grátis</span>

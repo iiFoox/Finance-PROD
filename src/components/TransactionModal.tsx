@@ -84,6 +84,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
         total: formData.totalInstallments,
         groupId: transaction?.installmentDetails?.groupId || crypto.randomUUID(),
       } : undefined,
+      invoiceMonth: formData.paymentMethod === 'creditCard' ? new Date(formData.date).getMonth() : undefined,
+      invoiceYear: formData.paymentMethod === 'creditCard' ? new Date(formData.date).getFullYear() : undefined,
     };
 
     if (transaction) {
@@ -109,6 +111,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               total: formData.totalInstallments,
               groupId,
             },
+            invoiceMonth: formData.paymentMethod === 'creditCard' ? installmentDate.getMonth() : undefined,
+            invoiceYear: formData.paymentMethod === 'creditCard' ? installmentDate.getFullYear() : undefined,
           });
         }
       } else {
@@ -183,6 +187,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 p-1"
+            aria-label="Fechar modal"
           >
             <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -197,6 +202,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               value={formData.paymentMethod}
               onChange={(e) => setFormData(prev => ({ ...prev, paymentMethod: e.target.value as any }))}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+              aria-label="Forma de pagamento"
             >
               <option value="money">Dinheiro/Outros</option>
               <option value="creditCard">Cartão de Crédito</option>
@@ -214,6 +220,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
                 value={formData.bankId}
                 onChange={(e) => setFormData(prev => ({ ...prev, bankId: e.target.value }))}
                 className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                aria-label="Banco"
                 required
               >
                 <option value="">Selecione um banco</option>
@@ -265,6 +272,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
               placeholder="0,00"
+              aria-label="Valor"
               required
             />
           </div>
@@ -277,6 +285,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               value={formData.category}
               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+              aria-label="Categoria"
             >
               {categories.map(category => (
                 <option key={category} value={category}>{category}</option>
@@ -294,8 +303,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 className="w-full px-3 py-2 pr-10 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-                placeholder="Ex: Almoço no restaurante"
-                required
+                placeholder="Descrição da transação"
+                aria-label="Descrição"
               />
               <button
                 type="button"
@@ -331,10 +340,12 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
                 </label>
                 <input
                   type="number"
-                  min="1"
                   value={formData.currentInstallment}
-                  onChange={(e) => setFormData(prev => ({ ...prev, currentInstallment: parseInt(e.target.value) }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, currentInstallment: parseInt(e.target.value) || 1 }))}
+                  min="1"
+                  max={formData.totalInstallments}
                   className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                  aria-label="Parcela atual"
                 />
               </div>
               <div>
@@ -343,10 +354,11 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
                 </label>
                 <input
                   type="number"
-                  min="2"
                   value={formData.totalInstallments}
-                  onChange={(e) => setFormData(prev => ({ ...prev, totalInstallments: parseInt(e.target.value) }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, totalInstallments: parseInt(e.target.value) || 2 }))}
+                  min="2"
                   className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
+                  aria-label="Total de parcelas"
                 />
               </div>
             </div>
@@ -361,7 +373,8 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
               value={formData.tags}
               onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
               className="w-full px-3 py-2 text-sm sm:text-base border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-slate-700 dark:text-white"
-              placeholder="trabalho, urgente, etc."
+              placeholder="Separe as tags por vírgula"
+              aria-label="Tags"
             />
           </div>
 

@@ -60,6 +60,9 @@ interface FinanceContextType {
   
   // Data loading
   loadUserData: () => Promise<void>;
+  
+  // New function
+  forceUpdateAllCreditCardTransactions: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -150,6 +153,53 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  const updateExistingTransactions = async () => {
+    if (!user) return;
+
+    try {
+      // Buscar todas as transações que precisam ser atualizadas
+      const { data: transactionsToUpdate, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('payment_method', 'creditCard')
+        .is('invoice_month', null);
+
+      if (fetchError) {
+        console.error('Erro ao buscar transações para atualizar:', fetchError);
+        return;
+      }
+
+      if (!transactionsToUpdate || transactionsToUpdate.length === 0) {
+        console.log('Nenhuma transação precisa ser atualizada');
+        return;
+      }
+
+      console.log(`Atualizando ${transactionsToUpdate.length} transações...`);
+
+      // Atualizar cada transação
+      for (const transaction of transactionsToUpdate) {
+        const date = new Date(transaction.date);
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update({
+            invoice_month: date.getMonth(),
+            invoice_year: date.getFullYear()
+          })
+          .eq('id', transaction.id)
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar transação:', updateError);
+        }
+      }
+
+      console.log('Transações atualizadas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar transações:', error);
+    }
+  };
+
   // Carregar todos os dados do usuário
   const loadUserData = async () => {
     if (!user) {
@@ -162,6 +212,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       // Primeiro, remover bancos duplicados
       await removeDuplicateBanks();
+
+      // Atualizar transações existentes
+      await updateExistingTransactions();
 
       // Carregar transações com join para categorias
       const { data: transactionsData, error: transactionsError } = await supabase
@@ -456,8 +509,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         is_installment: transaction.isInstallment || false,
         installment_details: transaction.installmentDetails,
         order_index: transaction.order || generateOrderIndex(),
-        invoice_month: transaction.invoiceMonth,
-        invoice_year: transaction.invoiceYear,
+        invoice_month: transaction.paymentMethod === 'creditCard' ? transaction.date.getMonth() : null,
+        invoice_year: transaction.paymentMethod === 'creditCard' ? transaction.date.getFullYear() : null,
       };
 
       console.log('Dados para inserir no Supabase:', transactionData);
@@ -516,15 +569,22 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (updates.type) updateData.type = updates.type === 'income' ? 'receita' : 'despesa';
       if (updates.amount !== undefined) updateData.amount = updates.amount;
       if (updates.description !== undefined) updateData.description = updates.description;
-      if (updates.date) updateData.date = updates.date.toISOString().split('T')[0];
+      if (updates.date) {
+        updateData.date = updates.date.toISOString().split('T')[0];
+        if (updates.paymentMethod === 'creditCard') {
+          updateData.invoice_month = updates.date.getMonth();
+          updateData.invoice_year = updates.date.getFullYear();
+        } else {
+          updateData.invoice_month = null;
+          updateData.invoice_year = null;
+        }
+      }
       if (updates.tags) updateData.tags = updates.tags;
-      if (updates.paymentMethod) updateData.payment_method = updates.paymentMethod;
+      if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
       if (updates.bankId !== undefined) updateData.bank_id = updates.bankId;
       if (updates.isInstallment !== undefined) updateData.is_installment = updates.isInstallment;
       if (updates.installmentDetails) updateData.installment_details = updates.installmentDetails;
       if (updates.order !== undefined) updateData.order_index = updates.order;
-      if (updates.invoiceMonth !== undefined) updateData.invoice_month = updates.invoiceMonth;
-      if (updates.invoiceYear !== undefined) updateData.invoice_year = updates.invoiceYear;
 
       // Handle category update
       if (updates.category) {
@@ -1112,6 +1172,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const bank = banks.find(b => b.id === bankId);
     const invoiceTransactions = transactions.filter(t => 
       t.bankId === bankId && 
+      t.paymentMethod === 'creditCard' &&
       t.invoiceMonth === month && 
       t.invoiceYear === year
     );
@@ -1135,6 +1196,55 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const goal = goals.find(g => g.id === goalId);
     if (!goal || goal.targetAmount === 0) return 0;
     return Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
+  };
+
+  const forceUpdateAllCreditCardTransactions = async () => {
+    if (!user) return;
+
+    try {
+      // Buscar todas as transações com cartão de crédito
+      const { data: creditCardTransactions, error: fetchError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('payment_method', 'creditCard');
+
+      if (fetchError) {
+        console.error('Erro ao buscar transações:', fetchError);
+        return;
+      }
+
+      if (!creditCardTransactions || creditCardTransactions.length === 0) {
+        console.log('Nenhuma transação com cartão de crédito encontrada');
+        return;
+      }
+
+      console.log(`Atualizando ${creditCardTransactions.length} transações...`);
+
+      // Atualizar cada transação
+      for (const transaction of creditCardTransactions) {
+        const date = new Date(transaction.date);
+        const { error: updateError } = await supabase
+          .from('transactions')
+          .update({
+            invoice_month: date.getMonth(),
+            invoice_year: date.getFullYear()
+          })
+          .eq('id', transaction.id)
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('Erro ao atualizar transação:', updateError);
+        }
+      }
+
+      // Recarregar os dados
+      await loadUserData();
+
+      console.log('Todas as transações foram atualizadas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao atualizar transações:', error);
+    }
   };
 
   const value: FinanceContextType = {
@@ -1186,6 +1296,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     getGoalProgress,
     
     loadUserData,
+    forceUpdateAllCreditCardTransactions,
   };
 
   return (

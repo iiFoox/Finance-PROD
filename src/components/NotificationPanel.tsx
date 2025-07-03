@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Bell, X, Check, Trash2 } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
 
@@ -9,6 +9,23 @@ interface NotificationPanelProps {
 
 const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }) => {
   const { notifications, markNotificationAsRead, clearAllNotifications } = useFinance();
+
+  // Fechar com a tecla ESC
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isOpen, onClose]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -31,8 +48,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-end z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden mt-16">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-end z-50 p-4"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-hidden mt-16"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-slate-700">
           <div className="flex items-center space-x-2">
             <Bell className="w-5 h-5 text-blue-500" />
@@ -58,6 +81,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
             <button
               onClick={onClose}
               className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+              title="Fechar"
             >
               <X className="w-5 h-5" />
             </button>

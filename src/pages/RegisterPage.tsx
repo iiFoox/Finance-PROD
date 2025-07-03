@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, TrendingUp, Loader2, Check, X } from 'lucide-react';
 
-interface RegisterPageProps {
-  onSwitchToLogin: () => void;
-}
-
-const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) => {
+const RegisterPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -19,6 +16,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const { register, isLoading } = useAuth();
+  const navigate = useNavigate();
 
   const passwordRequirements = [
     { label: 'Pelo menos 8 caracteres', valid: formData.password.length >= 8 },
@@ -69,24 +67,15 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) => {
     }
 
     try {
-      const success = await register(formData.name, formData.email, formData.password);
-      if (success) {
-        setSuccess('Conta criada com sucesso! Você pode fazer login agora.');
-        // Limpar formulário
-        setFormData({
-          name: '',
-          email: '',
-          password: '',
-          confirmPassword: ''
-        });
-        setAcceptTerms(false);
+      const result = await register(formData.name, formData.email, formData.password);
+      if (result.success) {
+        setSuccess('Conta criada com sucesso! Redirecionando para o login...');
         
-        // Redirecionar para login após 2 segundos
         setTimeout(() => {
-          onSwitchToLogin();
+          navigate('/login');
         }, 2000);
       } else {
-        setError('Erro ao criar conta. Verifique os dados e tente novamente.');
+        setError(result.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
     } catch (err) {
       setError('Erro ao criar conta. Tente novamente.');
@@ -251,35 +240,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onSwitchToLogin }) => {
                 e{' '}
                 <a href="#" className="text-blue-400 hover:text-blue-300 font-medium transition-colors">
                   política de privacidade
-                </a>
+                </a>.
               </label>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading || !isPasswordValid}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Criando conta...
-                </>
-              ) : (
-                'Criar conta'
-              )}
+            <button type="submit" disabled={isLoading} className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center shadow-lg transition-all duration-300">
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Criar minha conta'}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-gray-400">
               Já tem uma conta?{' '}
-              <button
-                onClick={onSwitchToLogin}
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                disabled={isLoading}
-              >
-                Fazer login
+              <button onClick={() => navigate('/login')} className="text-blue-400 hover:text-blue-300 font-medium" disabled={isLoading}>
+                Entrar
               </button>
             </p>
           </div>

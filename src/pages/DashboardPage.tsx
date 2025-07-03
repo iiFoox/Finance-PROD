@@ -12,6 +12,7 @@ import {
   Lightbulb
 } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
+
 import { ExpenseLineChart, CategoryPieChart, MonthlyComparisonChart } from '../components/Charts';
 import TransactionModal from '../components/TransactionModal';
 
@@ -25,6 +26,8 @@ const DashboardPage: React.FC = () => {
     selectedMonth,
     addNotification
   } = useFinance();
+  
+
   
   const [showTransactionModal, setShowTransactionModal] = useState(false);
   const [insights, setInsights] = useState<string>('');
@@ -148,6 +151,8 @@ const DashboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+
 
       {/* Insights Card */}
       <div className="bg-slate-800 border border-blue-800 p-4 lg:p-6 rounded-xl shadow-lg">
