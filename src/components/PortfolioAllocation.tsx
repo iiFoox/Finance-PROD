@@ -1,5 +1,7 @@
 import React from 'react';
 import { PieChart, BarChart3 } from 'lucide-react';
+import CategoryIcon from './CategoryIcons';
+import PixelCategoryIcon from './PixelCategoryIcons';
 
 interface Investment {
   id: string;
@@ -143,9 +145,11 @@ const PortfolioAllocation: React.FC<PortfolioAllocationProps> = ({
           {chartData.map((slice) => (
             <div key={slice.symbol} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{ backgroundColor: slice.color }}
+                <PixelCategoryIcon 
+                  category={slice.category} 
+                  type="investment" 
+                  size={16} 
+                  className="flex-shrink-0"
                 />
                 <div>
                   <div className="text-sm font-medium text-gray-800 dark:text-white">
@@ -269,7 +273,12 @@ export const PortfolioCategoryPieChart: React.FC<{ investments: Investment[]; hi
           {chartData.map((slice) => (
             <div key={slice.category} className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: slice.color }} />
+                <PixelCategoryIcon 
+                  category={slice.category} 
+                  type="investment" 
+                  size={16} 
+                  className="flex-shrink-0"
+                />
                 <div>
                   <div className="text-sm font-medium text-gray-800 dark:text-white">{slice.label}</div>
                 </div>
@@ -294,7 +303,12 @@ export const PortfolioCategoryPieChart: React.FC<{ investments: Investment[]; hi
             <div key={category.category} className="flex items-center justify-between w-full max-w-xs p-2 bg-gray-50 dark:bg-slate-700 rounded-lg shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="text-sm font-medium text-gray-600 dark:text-gray-400">#{index + 1}</div>
-                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color }} />
+                <PixelCategoryIcon 
+                  category={category.category} 
+                  type="investment" 
+                  size={14} 
+                  className="flex-shrink-0"
+                />
                 <div>
                   <div className="text-sm font-medium text-gray-800 dark:text-white">{category.label}</div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">{category.percentage.toFixed(1)}% do portfólio</div>

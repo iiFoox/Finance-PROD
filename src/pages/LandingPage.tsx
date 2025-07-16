@@ -25,6 +25,8 @@ import {
   Activity,
   Bell
 } from 'lucide-react';
+import CategoryIcon from '../components/CategoryIcons';
+import PixelCategoryIcon from '../components/PixelCategoryIcons';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -464,10 +466,12 @@ const LandingPage: React.FC = () => {
                   <div 
                     className="flex items-center justify-between p-4 bg-slate-700 rounded-lg h-16 transition-all duration-200 hover:bg-slate-600 cursor-pointer" 
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-red-400 text-sm">🍕</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <PixelCategoryIcon 
+                        category="Alimentação" 
+                        type="expense" 
+                        size={20}
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="text-white text-sm font-medium truncate">Restaurante</div>
                         <div className="text-gray-400 text-xs">Hoje, 19:30</div>
@@ -478,10 +482,12 @@ const LandingPage: React.FC = () => {
                   <div 
                     className="flex items-center justify-between p-4 bg-slate-700 rounded-lg h-16 transition-all duration-200 hover:bg-slate-600 cursor-pointer" 
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-green-400 text-sm">💰</span>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <PixelCategoryIcon 
+                        category="Salário" 
+                        type="income" 
+                        size={20}
+                      />
                       <div className="min-w-0 flex-1">
                         <div className="text-white text-sm font-medium truncate">Salário</div>
                         <div className="text-gray-400 text-xs">Ontem, 08:00</div>

@@ -12,6 +12,8 @@ import {
   Maximize2,
   Minimize2
 } from 'lucide-react';
+import CategoryIcon from '../components/CategoryIcons';
+import PixelCategoryIcon from '../components/PixelCategoryIcons';
 import { useFinance } from '../contexts/FinanceContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useAppSettings } from '../hooks/useAppSettings';
@@ -19,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ExpenseLineChart, CategoryPieChart, MonthlyComparisonChart } from '../components/Charts';
 import TransactionModal from '../components/TransactionModal';
+
 
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -202,35 +205,37 @@ const DashboardPage: React.FC = () => {
 
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
         {stats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <div key={index} className="bg-slate-800 rounded-xl p-3 lg:p-6 border border-slate-700 hover:shadow-lg transition-shadow duration-200">
-              <div className="flex items-center justify-between mb-2 lg:mb-4">
-                <div className={`w-8 h-8 lg:w-12 lg:h-12 rounded-lg flex items-center justify-center ${
-                  stat.color === 'blue' ? 'bg-blue-900/20' :
-                  stat.color === 'red' ? 'bg-red-900/20' :
-                  stat.color === 'green' ? 'bg-green-900/20' :
-                  'bg-purple-900/20'
-                }`}>
-                  <Icon className={`w-4 h-4 lg:w-6 lg:h-6 ${
-                    stat.color === 'blue' ? 'text-blue-400' :
-                    stat.color === 'red' ? 'text-red-400' :
-                    stat.color === 'green' ? 'text-green-400' :
-                    'text-purple-400'
-                  }`} />
+            <div key={index} className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700 hover:shadow-lg transition-shadow duration-200">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded-lg flex items-center justify-center ${
+                    stat.color === 'blue' ? 'bg-blue-900/20' :
+                    stat.color === 'red' ? 'bg-red-900/20' :
+                    stat.color === 'green' ? 'bg-green-900/20' :
+                    'bg-purple-900/20'
+                  }`}>
+                    <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${
+                      stat.color === 'blue' ? 'text-blue-400' :
+                      stat.color === 'red' ? 'text-red-400' :
+                      stat.color === 'green' ? 'text-green-400' :
+                      'text-purple-400'
+                    }`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm lg:text-base font-bold text-white truncate">{stat.value}</p>
+                    <p className="text-xs text-gray-400 truncate">{stat.label}</p>
+                  </div>
                 </div>
-                <div className={`flex items-center text-xs lg:text-sm font-medium ${
+                <div className={`flex items-center text-xs font-medium ${
                   stat.trend === 'up' ? 'text-green-400' : 'text-red-400'
                 }`}>
-                  {stat.trend === 'up' ? <ArrowUpRight className="w-3 h-3 lg:w-4 lg:h-4 mr-1" /> : <ArrowDownRight className="w-3 h-3 lg:w-4 lg:h-4 mr-1" />}
+                  {stat.trend === 'up' ? <ArrowUpRight className="w-3 h-3 mr-1" /> : <ArrowDownRight className="w-3 h-3 mr-1" />}
                   <span className="hidden sm:inline">{stat.change}</span>
                 </div>
-              </div>
-              <div>
-                <p className="text-lg lg:text-2xl font-bold text-white mb-1">{stat.value}</p>
-                <p className="text-xs lg:text-sm text-gray-400">{stat.label}</p>
               </div>
             </div>
           );
@@ -238,19 +243,25 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Income Details */}
-      <div className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-        <h3 className="text-base lg:text-lg font-semibold text-white mb-4">Detalhamento de Receitas</h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-6">
+      <div className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+        <h3 className="text-sm lg:text-base font-semibold text-white mb-3">Detalhamento de Receitas</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-3">
           {incomeDetails.map((income, index) => (
-            <div key={index} className="bg-slate-700 rounded-lg p-3 lg:p-4 border border-slate-600">
+            <div key={index} className="bg-slate-700 rounded-md p-2 lg:p-3 border border-slate-600">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs lg:text-sm font-medium text-gray-300">{income.label}</span>
-                <span className="text-xs lg:text-sm font-bold text-white">{income.percentage}%</span>
+                <div className="flex items-center gap-2">
+                  <PixelCategoryIcon 
+                    category={income.label} 
+                    size={16} 
+                  />
+                  <span className="text-xs font-medium text-gray-300">{income.label}</span>
+                </div>
+                <span className="text-xs font-bold text-white">{income.percentage}%</span>
               </div>
-              <div className="text-lg lg:text-xl font-bold text-white mb-2">{income.value}</div>
-              <div className="w-full bg-slate-600 rounded-full h-2">
+              <div className="text-sm lg:text-base font-bold text-white mb-2">{income.value}</div>
+              <div className="w-full bg-slate-600 rounded-full h-1.5">
                 <div 
-                  className={`h-2 rounded-full transition-all duration-300 ${
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
                     income.color === 'green' ? 'bg-green-500' :
                     income.color === 'blue' ? 'bg-blue-500' :
                     income.color === 'purple' ? 'bg-purple-500' :
@@ -264,17 +275,17 @@ const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4">
         {/* Charts */}
-        <div className="lg:col-span-2 bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base lg:text-lg font-semibold text-white">Evolução de Transações Diárias</h3>
-            <div className="flex items-center space-x-3">
+        <div className="lg:col-span-2 bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm lg:text-base font-semibold text-white">Evolução de Transações Diárias</h3>
+            <div className="flex items-center space-x-2">
               {/* Filtro de tipo de transação */}
               <select
                 value={chartTransactionType}
                 onChange={(e) => setChartTransactionType(e.target.value as 'expense' | 'income' | 'all')}
-                className="bg-slate-700 border border-slate-600 text-white text-xs lg:text-sm rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="bg-slate-700 border border-slate-600 text-white text-xs rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 aria-label="Filtrar por tipo de transação"
               >
                 <option value="expense">Despesas</option>
@@ -284,7 +295,7 @@ const DashboardPage: React.FC = () => {
               
               <button
                 onClick={() => setExpandedChart(!expandedChart)}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md text-xs lg:text-sm transition-colors flex items-center space-x-2"
+                className="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded-md text-xs transition-colors flex items-center space-x-1"
               >
                 {expandedChart ? (
                   <>
@@ -300,55 +311,50 @@ const DashboardPage: React.FC = () => {
               </button>
             </div>
           </div>
-          <div className={`relative transition-all duration-300 ${expandedChart ? 'h-96 lg:h-[500px]' : 'h-64 lg:h-80 xl:h-96'}`}>
+          <div className={`relative transition-all duration-300 ${expandedChart ? 'h-80 lg:h-96' : 'h-48 lg:h-64'}`}>
             <ExpenseLineChart expanded={expandedChart} transactionType={chartTransactionType} />
           </div>
         </div>
 
-        <div className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-          <h3 className="text-base lg:text-lg font-semibold text-white mb-4">Despesas por Categoria</h3>
-          <div className="relative h-64 lg:h-80 xl:h-96">
+        <div className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+          <h3 className="text-sm lg:text-base font-semibold text-white mb-3">Despesas por Categoria</h3>
+          <div className="relative h-48 lg:h-64">
             <CategoryPieChart />
           </div>
         </div>
       </div>
 
       {/* Monthly Comparison Chart */}
-      <div className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-        <h3 className="text-base lg:text-lg font-semibold text-white mb-4">Comparativo Mensal</h3>
-        <div className="relative h-64 lg:h-80 xl:h-96">
+      <div className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+        <h3 className="text-sm lg:text-base font-semibold text-white mb-3">Comparativo Mensal</h3>
+        <div className="relative h-48 lg:h-64">
           <MonthlyComparisonChart />
         </div>
       </div>
 
       {/* Recent Transactions & Goals */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
         {/* Recent Transactions */}
-        <div className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-          <div className="flex items-center justify-between mb-4 lg:mb-6">
-            <h3 className="text-base lg:text-lg font-semibold text-white">Transações Recentes</h3>
+        <div className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm lg:text-base font-semibold text-white">Transações Recentes</h3>
             <button 
               onClick={() => navigate('/expenses')}
-              className="text-xs lg:text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
               Ver todas
             </button>
           </div>
           
-          <div className="space-y-3 lg:space-y-4">
+          <div className="space-y-2">
             {recentTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-slate-700 rounded-lg h-14 transition-all duration-200 hover:bg-slate-600 cursor-pointer">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    transaction.type === 'income' ? 'bg-green-900/20' : 'bg-red-900/20'
-                  }`}>
-                    {transaction.type === 'income' ? (
-                      <ArrowUpRight className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <ArrowDownRight className="w-4 h-4 text-red-400" />
-                    )}
-                  </div>
+              <div key={transaction.id} className="flex items-center justify-between p-2 bg-slate-700 rounded-md h-12 transition-all duration-200 hover:bg-slate-600 cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <PixelCategoryIcon 
+                    category={transaction.category} 
+                    size={20}
+                  />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white truncate">
+                    <p className="text-xs font-medium text-white truncate">
                       {transaction.description}
                     </p>
                     <p className="text-xs text-gray-400">
@@ -357,7 +363,7 @@ const DashboardPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className={`text-sm font-medium ${
+                  <p className={`text-xs font-medium ${
                     transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {transaction.type === 'income' ? '+' : '-'}
@@ -373,35 +379,41 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Budget Progress */}
-        <div className="bg-slate-800 rounded-xl p-4 lg:p-6 border border-slate-700">
-          <div className="flex items-center justify-between mb-4 lg:mb-6">
-            <h3 className="text-base lg:text-lg font-semibold text-white">Orçamentos</h3>
+        <div className="bg-slate-800 rounded-lg p-3 lg:p-4 border border-slate-700">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm lg:text-base font-semibold text-white">Orçamentos</h3>
             <button 
               onClick={() => navigate('/budgets')}
-              className="text-xs lg:text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
               Gerenciar
             </button>
           </div>
           
-          <div className="space-y-3 lg:space-y-4">
+          <div className="space-y-2">
             {budgets.slice(0, 4).map((budget) => {
               const spent = categoryExpenses[budget.category] || 0;
               const progress = Math.min((spent / budget.targetAmount) * 100, 100);
               const isOverBudget = spent > budget.targetAmount;
               
               return (
-                <div key={budget.id} className="space-y-2">
+                <div key={budget.id} className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs lg:text-sm font-medium text-white">
-                      {budget.category}
-                    </span>
-                    <span className={`text-xs lg:text-sm ${isOverBudget ? 'text-red-400' : 'text-gray-400'}`}>
+                    <div className="flex items-center gap-2">
+                      <PixelCategoryIcon 
+                        category={budget.category} 
+                        size={16} 
+                      />
+                      <span className="text-xs font-medium text-white">
+                        {budget.category}
+                      </span>
+                    </div>
+                    <span className={`text-xs ${isOverBudget ? 'text-red-400' : 'text-gray-400'}`}>
                       {spent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} / {budget.targetAmount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </span>
                   </div>
-                  <div className="w-full bg-slate-700 rounded-full h-2">
+                  <div className="w-full bg-slate-700 rounded-full h-1.5">
                     <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
                         isOverBudget ? 'bg-red-500' : progress > 80 ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
                       style={{ width: `${Math.min(progress, 100)}%` }}

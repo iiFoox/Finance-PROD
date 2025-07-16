@@ -3,6 +3,8 @@ import Sortable from 'sortablejs';
 import { useFinance } from '../contexts/FinanceContext';
 import { Transaction } from '../types';
 import { Edit, Trash2, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
+import CategoryIcon from './CategoryIcons';
+import PixelCategoryIcon from './PixelCategoryIcons';
 
 interface DragDropTransactionsProps {
   transactions: Transaction[];
@@ -139,18 +141,20 @@ const DragDropTransactions: React.FC<DragDropTransactionsProps> = ({
                 {formatDate(transaction.date)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                  transaction.type === 'income' 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                    : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                }`}>
-                  {transaction.type === 'income' ? (
-                    <ArrowUp className="w-3 h-3 mr-1" />
-                  ) : (
-                    <ArrowDown className="w-3 h-3 mr-1" />
-                  )}
-                  {transaction.type === 'income' ? 'Receita' : 'Despesa'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <PixelCategoryIcon 
+                    category={transaction.category} 
+                    type={transaction.type} 
+                    size={20}
+                  />
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    transaction.type === 'income' 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                  }`}>
+                    {transaction.type === 'income' ? 'Receita' : 'Despesa'}
+                  </span>
+                </div>
               </td>
               <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-300">
                 <div>

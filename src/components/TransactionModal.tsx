@@ -119,11 +119,34 @@ const TransactionModal: React.FC<TransactionModalProps> = ({ isOpen, onClose, tr
     const newCategories = Object.keys(categoryMap[formData.type]);
     setCategories(newCategories);
     
-    // Update subcategories based on category
-    if (formData.category) {
-      setSubcategories(categoryMap[formData.type][formData.category as keyof typeof categoryMap[typeof formData.type]] || []);
+    // Reset category if it's not valid for the new type
+    if (!newCategories.includes(formData.category)) {
+      setFormData(prev => ({ 
+        ...prev, 
+        category: newCategories[0] || '',
+        subcategory: ''
+      }));
     }
-  }, [formData.type, formData.category]);
+  }, [formData.type]);
+
+  useEffect(() => {
+    // Update subcategories based on category
+    if (formData.category && categoryMap[formData.type][formData.category as keyof typeof categoryMap[typeof formData.type]]) {
+      const newSubcategories = categoryMap[formData.type][formData.category as keyof typeof categoryMap[typeof formData.type]] || [];
+      setSubcategories(newSubcategories);
+      
+      // Reset subcategory if it's not valid for the new category
+      if (!newSubcategories.includes(formData.subcategory)) {
+        setFormData(prev => ({ 
+          ...prev, 
+          subcategory: newSubcategories[0] || ''
+        }));
+      }
+    } else {
+      setSubcategories([]);
+      setFormData(prev => ({ ...prev, subcategory: '' }));
+    }
+  }, [formData.category, formData.type]);
 
   useEffect(() => {
     if (transaction) {
