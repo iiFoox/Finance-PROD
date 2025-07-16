@@ -55,13 +55,19 @@ const SimpleToast: React.FC<SimpleToastProps> = ({
               }
             `}
           >
-            <div className={`
-              ${type === 'success' 
-                ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
-                : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-              }
-              border rounded-lg shadow-lg p-4 backdrop-blur-sm
-            `}>
+            <div 
+              className={`
+                ${type === 'success' 
+                  ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800' 
+                  : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+                }
+                border rounded-lg shadow-lg p-4 backdrop-blur-sm
+              `}
+              role="alert"
+              aria-live="assertive"
+              aria-atomic="true"
+              aria-label={`Notificação ${type}: ${title}`}
+            >
               <div className="flex items-start space-x-3">
                 <div className="flex-shrink-0 mt-0.5">
                   {type === 'success' ? (
@@ -84,8 +90,9 @@ const SimpleToast: React.FC<SimpleToastProps> = ({
                 
                 <button
                   onClick={handleClose}
-                  className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                  className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
                   aria-label="Fechar notificação"
+                  title="Fechar notificação"
                 >
                   <X className="w-4 h-4" />
                 </button>

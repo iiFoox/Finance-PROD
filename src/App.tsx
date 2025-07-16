@@ -3,8 +3,11 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { FinanceProvider } from './contexts/FinanceContext';
+import { ToastProvider } from './contexts/ToastContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import DashboardPage from './pages/DashboardPage';
 import ExpensesPage from './pages/ExpensesPage';
 import BanksPage from './pages/BanksPage';
@@ -14,6 +17,14 @@ import SettingsPage from './pages/Settings';
 import InvestmentsPage from './pages/InvestmentsPage';
 import Layout from './components/Layout';
 import LandingPage from './pages/LandingPage';
+import RecursosPage from './pages/RecursosPage';
+import PrecosPage from './pages/PrecosPage';
+import ContatoPage from './pages/ContatoPage';
+import SobrePage from './pages/SobrePage';
+import IntegracoesPage from './pages/IntegracoesPage';
+import AjudaPage from './pages/AjudaPage';
+import DocumentacaoPage from './pages/DocumentacaoPage';
+import StatusPage from './pages/StatusPage';
 
 // PrivateRoute protege as rotas que exigem autenticação
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -66,6 +77,18 @@ const AppContent: React.FC = () => {
       <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      
+      {/* Páginas Públicas */}
+      <Route path="/recursos" element={<RecursosPage />} />
+      <Route path="/precos" element={<PrecosPage />} />
+      <Route path="/contato" element={<ContatoPage />} />
+      <Route path="/sobre" element={<SobrePage />} />
+      <Route path="/integracoes" element={<IntegracoesPage />} />
+      <Route path="/ajuda" element={<AjudaPage />} />
+      <Route path="/documentacao" element={<DocumentacaoPage />} />
+      <Route path="/status" element={<StatusPage />} />
       
       {/* Rotas Privadas */}
       <Route path="/dashboard" element={<PrivateRoute><Layout><DashboardPage /></Layout></PrivateRoute>} />
@@ -86,13 +109,15 @@ const AppContent: React.FC = () => {
 function App() {
   return (
     <Router>
-    <ThemeProvider>
-      <AuthProvider>
-        <FinanceProvider>
-          <AppContent />
-        </FinanceProvider>
-      </AuthProvider>
-    </ThemeProvider>
+      <ToastProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <FinanceProvider>
+              <AppContent />
+            </FinanceProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </ToastProvider>
     </Router>
   );
 }

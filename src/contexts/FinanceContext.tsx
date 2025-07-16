@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Transaction, Budget, Bank, RecurringTransaction, MonthlyBalance, Notification, Goal, Invoice } from '../types';
+import { Transaction, Budget, Bank, Card, RecurringTransaction, MonthlyBalance, Notification, Goal, Invoice } from '../types';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -8,6 +8,7 @@ interface FinanceContextType {
   transactions: Transaction[];
   budgets: Budget[];
   banks: Bank[];
+  cards: Card[];
   recurringTransactions: RecurringTransaction[];
   monthlyBalances: MonthlyBalance[];
   notifications: Notification[];
@@ -25,6 +26,7 @@ interface FinanceContextType {
   addTransaction: (transaction: Omit<Transaction, 'id'>) => Promise<void>;
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  clearAllTransactions: () => Promise<void>;
   reorderTransactions: (transactions: Transaction[]) => Promise<void>;
   
   addBudget: (budget: Omit<Budget, 'id'>) => Promise<void>;
@@ -35,12 +37,17 @@ interface FinanceContextType {
   updateBank: (id: string, bank: Partial<Bank>) => Promise<void>;
   deleteBank: (id: string) => Promise<void>;
   
+  addCard: (card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateCard: (id: string, card: Partial<Card>) => Promise<void>;
+  deleteCard: (id: string) => Promise<void>;
+  
   addGoal: (goal: Omit<Goal, 'id' | 'createdAt'>) => Promise<void>;
   updateGoal: (id: string, goal: Partial<Goal>) => Promise<void>;
   deleteGoal: (id: string) => Promise<void>;
   
   addRecurringTransaction: (recurring: Omit<RecurringTransaction, 'id'>) => Promise<void>;
   deleteRecurringTransaction: (id: string) => Promise<void>;
+  clearAllRecurringTransactions: () => Promise<void>;
   
   setMonthlyBalance: (month: string, balance: number) => Promise<void>;
   
@@ -80,6 +87,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [cards, setCards] = useState<Card[]>([]);
   const [recurringTransactions, setRecurringTransactions] = useState<RecurringTransaction[]>([]);
   const [monthlyBalances, setMonthlyBalances] = useState<MonthlyBalance[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -237,13 +245,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           type: t.type === 'receita' ? 'income' : 'expense',
           amount: parseFloat(t.amount) || 0,
           category: t.categories?.name || 'Sem categoria',
+          subcategory: t.subcategory || '',
           description: t.description || '',
           date: new Date(t.date),
           tags: t.tags || [],
           paymentMethod: t.payment_method as 'money' | 'creditCard' | 'debitCard' | 'pix',
           bankId: t.bank_id,
+          cardId: t.card_id,
           isInstallment: t.is_installment || false,
           installmentDetails: t.installment_details,
+          isRecurring: t.is_recurring || false,
+          recurringDetails: t.recurring_details,
           order: t.order_index || 0,
           invoiceMonth: t.invoice_month,
           invoiceYear: t.invoice_year,
@@ -274,6 +286,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setBanks(formattedBanks);
         setHasInitializedBanks(true);
+      }
+
+      // Carregar cartões
+      const { data: cardsData, error: cardsError } = await supabase
+        .from('cards')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (cardsError) {
+        console.error('Erro ao carregar cartões:', cardsError);
+      } else {
+        const formattedCards: Card[] = (cardsData || []).map(c => ({
+          id: c.id,
+          bankId: c.bank_id,
+          lastFourDigits: c.last_four_digits,
+          cardType: c.card_type as 'credit' | 'debit',
+          isActive: c.is_active,
+          createdAt: new Date(c.created_at),
+          updatedAt: new Date(c.updated_at),
+        }));
+
+        setCards(formattedCards);
       }
 
       // Carregar orçamentos
@@ -502,12 +537,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         description: transaction.description || '',
         amount: transaction.amount,
         type: transaction.type === 'income' ? 'receita' : 'despesa',
-        date: transaction.date.toISOString().split('T')[0],
-        tags: transaction.tags || [],
+        date: transaction.date.toISOString(),
+        tags: transaction.isRecurring ? [...(transaction.tags || []), 'Recorrente'] : (transaction.tags || []),
         payment_method: transaction.paymentMethod || 'money',
         bank_id: transaction.bankId,
+        card_id: transaction.cardId,
         is_installment: transaction.isInstallment || false,
         installment_details: transaction.installmentDetails,
+        is_recurring: transaction.isRecurring || false,
+        recurring_details: transaction.recurringDetails,
         order_index: transaction.order || generateOrderIndex(),
         invoice_month: transaction.paymentMethod === 'creditCard' ? transaction.date.getMonth() : null,
         invoice_year: transaction.paymentMethod === 'creditCard' ? transaction.date.getFullYear() : null,
@@ -538,13 +576,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         type: data.type === 'receita' ? 'income' : 'expense',
         amount: parseFloat(data.amount) || 0,
         category: data.categories?.name || 'Sem categoria',
+        subcategory: '',
         description: data.description || '',
         date: new Date(data.date),
         tags: data.tags || [],
         paymentMethod: data.payment_method as 'money' | 'creditCard' | 'debitCard' | 'pix',
         bankId: data.bank_id,
+        cardId: data.card_id,
         isInstallment: data.is_installment || false,
         installmentDetails: data.installment_details,
+        isRecurring: data.is_recurring || false,
+        recurringDetails: data.recurring_details,
         order: data.order_index || 0,
         invoiceMonth: data.invoice_month,
         invoiceYear: data.invoice_year,
@@ -554,8 +596,27 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       console.log('Transação adicionada ao estado local');
 
+      // Adicionar notificação de sucesso
+      await addNotification({
+        title: 'Transação Adicionada',
+        message: `${transaction.type === 'income' ? 'Receita' : 'Despesa'} de R$ ${transaction.amount.toFixed(2)} adicionada com sucesso.`,
+        type: 'success',
+        date: new Date(),
+        read: false,
+      });
+
     } catch (error) {
       console.error('Erro ao adicionar transação:', error);
+      
+      // Adicionar notificação de erro
+      await addNotification({
+        title: 'Erro ao Adicionar Transação',
+        message: 'Não foi possível adicionar a transação. Tente novamente.',
+        type: 'error',
+        date: new Date(),
+        read: false,
+      });
+      
       throw error;
     }
   };
@@ -570,7 +631,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (updates.amount !== undefined) updateData.amount = updates.amount;
       if (updates.description !== undefined) updateData.description = updates.description;
       if (updates.date) {
-        updateData.date = updates.date.toISOString().split('T')[0];
+        updateData.date = updates.date.toISOString();
         if (updates.paymentMethod === 'creditCard') {
           updateData.invoice_month = updates.date.getMonth();
           updateData.invoice_year = updates.date.getFullYear();
@@ -582,8 +643,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (updates.tags) updateData.tags = updates.tags;
       if (updates.paymentMethod !== undefined) updateData.payment_method = updates.paymentMethod;
       if (updates.bankId !== undefined) updateData.bank_id = updates.bankId;
+      if (updates.cardId !== undefined) updateData.card_id = updates.cardId;
       if (updates.isInstallment !== undefined) updateData.is_installment = updates.isInstallment;
       if (updates.installmentDetails) updateData.installment_details = updates.installmentDetails;
+      if (updates.isRecurring !== undefined) updateData.is_recurring = updates.isRecurring;
+      if (updates.recurringDetails) updateData.recurring_details = updates.recurringDetails;
       if (updates.order !== undefined) updateData.order_index = updates.order;
 
       // Handle category update
@@ -628,11 +692,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (error) throw error;
 
       setTransactions(prev => 
-        prev.map(t => t.id === id ? { ...t, ...updates } : t)
+        prev.map(t => t.id === id ? { ...t, ...updates, subcategory: updates.subcategory || t.subcategory } : t)
       );
+
+      // Adicionar notificação de sucesso
+      await addNotification({
+        title: 'Transação Atualizada',
+        message: 'Transação atualizada com sucesso.',
+        type: 'success',
+        date: new Date(),
+        read: false,
+      });
 
     } catch (error) {
       console.error('Erro ao atualizar transação:', error);
+      
+      // Adicionar notificação de erro
+      await addNotification({
+        title: 'Erro ao Atualizar Transação',
+        message: 'Não foi possível atualizar a transação. Tente novamente.',
+        type: 'error',
+        date: new Date(),
+        read: false,
+      });
+      
       throw error;
     }
   };
@@ -651,8 +734,65 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       setTransactions(prev => prev.filter(t => t.id !== id));
 
+      // Adicionar notificação de sucesso
+      await addNotification({
+        title: 'Transação Excluída',
+        message: 'Transação excluída com sucesso.',
+        type: 'success',
+        date: new Date(),
+        read: false,
+      });
+
     } catch (error) {
       console.error('Erro ao deletar transação:', error);
+      
+      // Adicionar notificação de erro
+      await addNotification({
+        title: 'Erro ao Excluir Transação',
+        message: 'Não foi possível excluir a transação. Tente novamente.',
+        type: 'error',
+        date: new Date(),
+        read: false,
+      });
+      
+      throw error;
+    }
+  };
+
+  const clearAllTransactions = async () => {
+    if (!user) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (deleteError) throw deleteError;
+
+      setTransactions([]);
+
+      // Adicionar notificação de sucesso
+      await addNotification({
+        title: 'Transações Limpas',
+        message: 'Todas as transações foram removidas com sucesso.',
+        type: 'success',
+        date: new Date(),
+        read: false,
+      });
+
+    } catch (error) {
+      console.error('Erro ao limpar transações:', error);
+      
+      // Adicionar notificação de erro
+      await addNotification({
+        title: 'Erro ao Limpar Transações',
+        message: 'Não foi possível limpar as transações. Tente novamente.',
+        type: 'error',
+        date: new Date(),
+        read: false,
+      });
+      
       throw error;
     }
   };
@@ -870,6 +1010,91 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
+  // Funções para gerenciar cartões
+  const addCard = async (card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('cards')
+        .insert({
+          user_id: user.id,
+          bank_id: card.bankId,
+          last_four_digits: card.lastFourDigits,
+          card_type: card.cardType,
+          is_active: card.isActive,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newCard: Card = {
+        id: data.id,
+        bankId: data.bank_id,
+        lastFourDigits: data.last_four_digits,
+        cardType: data.card_type as 'credit' | 'debit',
+        isActive: data.is_active,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+      };
+
+      setCards(prev => [newCard, ...prev]);
+
+    } catch (error) {
+      console.error('Erro ao adicionar cartão:', error);
+      throw error;
+    }
+  };
+
+  const updateCard = async (id: string, updates: Partial<Card>) => {
+    if (!user) return;
+
+    try {
+      const updateData: any = {};
+      
+      if (updates.lastFourDigits !== undefined) updateData.last_four_digits = updates.lastFourDigits;
+      if (updates.cardType !== undefined) updateData.card_type = updates.cardType;
+      if (updates.isActive !== undefined) updateData.is_active = updates.isActive;
+
+      const { error } = await supabase
+        .from('cards')
+        .update(updateData)
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setCards(prev => 
+        prev.map(c => c.id === id ? { ...c, ...updates } : c)
+      );
+
+    } catch (error) {
+      console.error('Erro ao atualizar cartão:', error);
+      throw error;
+    }
+  };
+
+  const deleteCard = async (id: string) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('cards')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setCards(prev => prev.filter(c => c.id !== id));
+
+    } catch (error) {
+      console.error('Erro ao deletar cartão:', error);
+      throw error;
+    }
+  };
+
   const addGoal = async (goal: Omit<Goal, 'id' | 'createdAt'>) => {
     if (!user) return;
 
@@ -1022,6 +1247,68 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     } catch (error) {
       console.error('Erro ao deletar transação recorrente:', error);
+      throw error;
+    }
+  };
+
+  const clearAllRecurringTransactions = async () => {
+    if (!user) return;
+
+    try {
+      // 1. Limpar transações recorrentes da tabela recurring_transactions
+      const { error: recurringError } = await supabase
+        .from('recurring_transactions')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (recurringError) throw recurringError;
+
+      setRecurringTransactions([]);
+
+      // 2. Limpar transações que foram marcadas como recorrentes (campo is_recurring = true)
+      const { data: recurringTransactionsData, error: fetchError } = await supabase
+        .from('transactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_recurring', true);
+
+      if (fetchError) throw fetchError;
+
+      if (recurringTransactionsData && recurringTransactionsData.length > 0) {
+        const transactionIds = recurringTransactionsData.map(t => t.id);
+        
+        const { error: deleteError } = await supabase
+          .from('transactions')
+          .delete()
+          .in('id', transactionIds);
+
+        if (deleteError) throw deleteError;
+
+        // Atualizar o estado local removendo as transações deletadas
+        setTransactions(prev => prev.filter(t => !transactionIds.includes(t.id)));
+      }
+
+      // Adicionar notificação de sucesso
+      await addNotification({
+        title: 'Transações recorrentes limpas',
+        message: `Todas as transações recorrentes foram removidas com sucesso.`,
+        type: 'success',
+        date: new Date(),
+        read: false,
+      });
+
+    } catch (error) {
+      console.error('Erro ao limpar transações recorrentes:', error);
+      
+      // Adicionar notificação de erro
+      await addNotification({
+        title: 'Erro ao limpar transações recorrentes',
+        message: 'Não foi possível limpar as transações recorrentes. Tente novamente.',
+        type: 'error',
+        date: new Date(),
+        read: false,
+      });
+      
       throw error;
     }
   };
@@ -1251,6 +1538,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     transactions,
     budgets,
     banks,
+    cards,
     recurringTransactions,
     monthlyBalances,
     notifications,
@@ -1263,6 +1551,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    clearAllTransactions,
     reorderTransactions,
     
     addBudget,
@@ -1273,12 +1562,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     updateBank,
     deleteBank,
     
+    addCard,
+    updateCard,
+    deleteCard,
+    
     addGoal,
     updateGoal,
     deleteGoal,
     
     addRecurringTransaction,
     deleteRecurringTransaction,
+    clearAllRecurringTransactions,
     
     setMonthlyBalance,
     

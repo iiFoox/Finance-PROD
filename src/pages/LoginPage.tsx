@@ -63,11 +63,16 @@ const LoginPage: React.FC = () => {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-xl">
-            <TrendingUp className="w-8 h-8 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-1">FinanceApp</h1>
-          <p className="text-gray-400">Controle seus gastos de forma inteligente</p>
+          <button
+            onClick={() => navigate('/')}
+            className="inline-flex flex-col items-center hover:opacity-80 transition-opacity"
+          >
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4 shadow-xl">
+              <TrendingUp className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-1">FinanceApp</h1>
+            <p className="text-gray-400">Controle seus gastos de forma inteligente</p>
+          </button>
         </div>
 
         {/* Card de Login */}
@@ -123,8 +128,10 @@ const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-700"
                   disabled={localLoading}
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -133,7 +140,12 @@ const LoginPage: React.FC = () => {
 
             {/* Link Esqueci Senha */}
             <div className="flex items-center justify-end">
-              <button type="button" className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors">
+              <button 
+                type="button" 
+                onClick={() => navigate('/forgot-password')}
+                className="text-sm text-blue-400 hover:text-blue-300 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-700 rounded"
+                aria-label="Esqueci minha senha"
+              >
                 Esqueci minha senha
               </button>
             </div>
@@ -161,8 +173,9 @@ const LoginPage: React.FC = () => {
               Não tem uma conta?{' '}
               <button
                 onClick={() => navigate('/register')}
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                className="text-blue-400 hover:text-blue-300 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-700 rounded"
                 disabled={localLoading}
+                aria-label="Criar nova conta"
               >
                 Criar conta
               </button>

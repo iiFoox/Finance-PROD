@@ -1,18 +1,25 @@
 export interface Transaction {
   id: string;
-  type: 'income' | 'expense';
+  type: 'income' | 'expense' | 'investment';
   amount: number;
   category: string;
+  subcategory: string;
   description: string;
   date: Date;
   tags?: string[];
   paymentMethod?: 'money' | 'creditCard' | 'debitCard' | 'pix';
   bankId?: string;
+  cardId?: string; // ID do cartão selecionado
   isInstallment?: boolean;
   installmentDetails?: {
     current: number;
     total: number;
     groupId: string;
+  };
+  isRecurring?: boolean;
+  recurringDetails?: {
+    frequency: 'monthly';
+    endDate?: Date;
   };
   order?: number;
   invoiceMonth?: number;
@@ -28,6 +35,16 @@ export interface Budget {
   alertThreshold?: number; // Percentage to trigger alert
 }
 
+export interface Card {
+  id: string;
+  bankId: string;
+  lastFourDigits: string;
+  cardType: 'credit' | 'debit';
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface Bank {
   id: string;
   name: string;
@@ -36,6 +53,7 @@ export interface Bank {
   type: 'credit' | 'debit' | 'account';
   closingDay?: number; // Day of month when invoice closes
   dueDay?: number; // Day of month when payment is due
+  cards?: Card[]; // Cartões associados ao banco
 }
 
 export interface RecurringTransaction {

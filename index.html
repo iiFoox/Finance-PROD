@@ -1,10 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    
+    <!-- Favicon simples -->
+    <link rel="icon" href="/favicon.svg?v=16" type="image/svg+xml" />
+    <link rel="shortcut icon" href="/favicon.svg?v=16" type="image/svg+xml" />
+    
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Personal Finance Management App</title>
+    <meta name="description" content="FinanceApp - Gerencie suas finanças pessoais de forma inteligente e eficiente" />
+    <meta name="keywords" content="finanças, dinheiro, orçamento, investimentos, controle financeiro" />
+    <meta name="author" content="FinanceApp" />
+    <meta name="theme-color" content="#3B82F6" />
+    
+    <title>FinanceApp - Controle Financeiro Inteligente</title>
+    <script>
+      // Força recarregamento do favicon
+      const favicon = document.querySelector('link[rel="icon"]');
+      if (favicon) {
+        favicon.href = '/favicon.svg?v=' + Date.now();
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

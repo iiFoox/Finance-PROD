@@ -15,7 +15,7 @@ const DragDropTransactions: React.FC<DragDropTransactionsProps> = ({
   onEdit, 
   onDelete 
 }) => {
-  const { reorderTransactions, banks } = useFinance();
+  const { reorderTransactions, banks, cards } = useFinance();
   const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   useEffect(() => {
@@ -61,6 +61,12 @@ const DragDropTransactions: React.FC<DragDropTransactionsProps> = ({
     if (!bankId) return 'Dinheiro';
     const bank = banks.find(b => b.id === bankId);
     return bank?.name || 'Banco não encontrado';
+  };
+
+  const getCardInfo = (cardId?: string) => {
+    if (!cardId) return null;
+    const card = cards.find(c => c.id === cardId);
+    return card ? card.lastFourDigits : null;
   };
 
   const getPaymentMethodLabel = (method?: string) => {
@@ -121,7 +127,7 @@ const DragDropTransactions: React.FC<DragDropTransactionsProps> = ({
           {transactions.map((transaction) => (
             <tr 
               key={transaction.id} 
-              className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-move"
+              className="hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-move group"
               data-id={transaction.id}
             >
               <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -174,6 +180,9 @@ const DragDropTransactions: React.FC<DragDropTransactionsProps> = ({
                   {transaction.bankId && (
                     <div className="text-xs text-gray-500 dark:text-gray-400">
                       {getBankName(transaction.bankId)}
+                      {transaction.cardId && getCardInfo(transaction.cardId) && (
+                        <span className="ml-1">- {getCardInfo(transaction.cardId)}</span>
+                      )}
                     </div>
                   )}
                 </div>

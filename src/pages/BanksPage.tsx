@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, CreditCard, Landmark, Edit, Trash2, Eye, Calendar } from 'lucide-react';
 import { useFinance } from '../contexts/FinanceContext';
 import BankModal from '../components/BankModal';
+import CardModal from '../components/CardModal';
 import { Bank } from '../types';
 
 const BanksPage: React.FC = () => {
@@ -12,12 +13,17 @@ const BanksPage: React.FC = () => {
     selectedYear, 
     selectedMonth,
     getBankInvoice,
-    forceUpdateAllCreditCardTransactions
+    forceUpdateAllCreditCardTransactions,
+    cards
   } = useFinance();
   
   const [showBankModal, setShowBankModal] = useState(false);
+  const [showCardModal, setShowCardModal] = useState(false);
+  const [showBankSelector, setShowBankSelector] = useState(false);
   const [editingBank, setEditingBank] = useState<Bank | null>(null);
+  const [selectedBankForCards, setSelectedBankForCards] = useState<Bank | null>(null);
   const [selectedBankInvoice, setSelectedBankInvoice] = useState<string | null>(null);
+  const bankSelectorRef = useRef<HTMLDivElement>(null);
 
   const handleEdit = (bank: Bank) => {
     setEditingBank(bank);
@@ -34,6 +40,38 @@ const BanksPage: React.FC = () => {
     setShowBankModal(false);
     setEditingBank(null);
   };
+
+  const handleManageCards = (bank: Bank) => {
+    setSelectedBankForCards(bank);
+    setShowCardModal(true);
+    setShowBankSelector(false);
+  };
+
+  const handleCloseCardModal = () => {
+    setShowCardModal(false);
+    setSelectedBankForCards(null);
+  };
+
+  const toggleBankSelector = () => {
+    setShowBankSelector(!showBankSelector);
+  };
+
+  // Fechar dropdown quando clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (bankSelectorRef.current && !bankSelectorRef.current.contains(event.target as Node)) {
+        setShowBankSelector(false);
+      }
+    };
+
+    if (showBankSelector) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showBankSelector]);
 
   const formatCurrency = (value: number) => 
     value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -132,6 +170,9 @@ const BanksPage: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Categoria
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Cartão
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Valor
                     </th>
@@ -157,6 +198,14 @@ const BanksPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
                         {transaction.category}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">
+                        {transaction.cardId ? (
+                          (() => {
+                            const card = cards.find(c => c.id === transaction.cardId);
+                            return card ? card.lastFourDigits : '-';
+                          })()
+                        ) : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium text-red-600 dark:text-red-400">
                         {formatCurrency(transaction.amount)}
@@ -193,6 +242,42 @@ const BanksPage: React.FC = () => {
             <Plus className="w-5 h-5" />
             <span>Adicionar Banco</span>
           </button>
+          <div className="relative" ref={bankSelectorRef}>
+            <button
+              onClick={() => {
+                if (banks.length === 1) {
+                  handleManageCards(banks[0]);
+                } else if (banks.length > 1) {
+                  toggleBankSelector();
+                }
+              }}
+              disabled={banks.length === 0}
+              className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-6 py-3 rounded-lg font-medium hover:from-purple-600 hover:to-pink-700 transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CreditCard className="w-5 h-5" />
+              <span>Gerenciar Cartões</span>
+            </button>
+            {banks.length > 1 && showBankSelector && (
+              <div className="absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 z-10">
+                <div className="p-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 px-2 py-1">Selecionar banco:</p>
+                  {banks.map((bank) => (
+                    <button
+                      key={bank.id}
+                      onClick={() => handleManageCards(bank)}
+                      className="w-full text-left px-2 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded flex items-center space-x-2"
+                    >
+                      <div 
+                        className="w-3 h-3 rounded"
+                        style={{ backgroundColor: bank.color }}
+                      />
+                      <span>{bank.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -335,6 +420,12 @@ const BanksPage: React.FC = () => {
         isOpen={showBankModal}
         onClose={handleCloseModal}
         bank={editingBank}
+      />
+
+      <CardModal
+        isOpen={showCardModal}
+        onClose={handleCloseCardModal}
+        bank={selectedBankForCards}
       />
     </div>
   );

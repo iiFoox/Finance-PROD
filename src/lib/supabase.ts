@@ -7,7 +7,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true, // Importante para processar links de redefinição
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'finance-app-web',
+    },
+  },
+});
 
 // Tipos para o banco de dados
 export interface Database {
@@ -35,6 +46,38 @@ export interface Database {
           name?: string;
           email?: string;
           avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      user_settings: {
+        Row: {
+          id: string;
+          user_id: string;
+          notifications: any;
+          preferences: any;
+          financial: any;
+          analytics: any;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          notifications?: any;
+          preferences?: any;
+          financial?: any;
+          analytics?: any;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          notifications?: any;
+          preferences?: any;
+          financial?: any;
+          analytics?: any;
           created_at?: string;
           updated_at?: string;
         };
@@ -91,6 +134,8 @@ export interface Database {
           bank_id: string | null;
           is_installment: boolean;
           installment_details: any | null;
+          is_recurring: boolean;
+          recurring_details: any | null;
           order_index: number;
           invoice_month: number | null;
           invoice_year: number | null;
@@ -110,6 +155,8 @@ export interface Database {
           bank_id?: string | null;
           is_installment?: boolean;
           installment_details?: any | null;
+          is_recurring?: boolean;
+          recurring_details?: any | null;
           order_index?: number;
           invoice_month?: number | null;
           invoice_year?: number | null;
@@ -129,6 +176,8 @@ export interface Database {
           bank_id?: string | null;
           is_installment?: boolean;
           installment_details?: any | null;
+          is_recurring?: boolean;
+          recurring_details?: any | null;
           order_index?: number;
           invoice_month?: number | null;
           invoice_year?: number | null;

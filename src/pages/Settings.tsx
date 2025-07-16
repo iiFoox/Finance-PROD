@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useFinance } from '../contexts/FinanceContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useUserSettings, UserSettings } from '../hooks/useUserSettings';
+import { useToast } from '../contexts/ToastContext';
 import { supabase } from '../lib/supabase';
 import { 
   Bell, 
@@ -17,16 +19,22 @@ import {
   Settings2,
   TrendingUp,
   Target,
-  Calculator
+  Calculator,
+  AlertTriangle,
+  Trash2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SimpleToast from '../components/SimpleToast';
+import Modal from '../components/Modal';
 
 const SettingsPage: React.FC = () => {
-  const { banks, transactions } = useFinance();
+  const { banks, transactions, clearAllTransactions } = useFinance();
   const { user, signOut, updateProfile } = useAuth();
+  const { settings, isLoading: settingsLoading, saveSettings, validateSettings, updateSettings } = useUserSettings();
+  const { showSuccess, showError, showWarning } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
   // Estados para o toast
   const [toast, setToast] = useState<{
     show: boolean;
@@ -45,54 +53,21 @@ const SettingsPage: React.FC = () => {
   const [previewAvatar, setPreviewAvatar] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [showClearTransactionsModal, setShowClearTransactionsModal] = useState(false);
+  const [isClearingTransactions, setIsClearingTransactions] = useState(false);
   
-  const [settings, setSettings] = useState({
-    // Perfil
-    profile: {
-      name: user?.user_metadata?.name || '',
-      email: user?.email || '',
-      avatar_url: user?.user_metadata?.avatar_url || '',
-    },
-    // Notificações
-    notifications: {
-      dueBills: true,
-      lowBalance: true,
-      budgetAlerts: true,
-      monthlyReport: true,
-      transactionReminders: true,
-      goalAchievements: true,
-      weeklyDigest: false,
-      investmentUpdates: true,
-    },
-    // Preferências
-    preferences: {
-      defaultBank: banks[0]?.id || '',
-      defaultView: 'month',
-      currency: 'BRL',
-      dateFormat: 'dd/MM/yyyy',
-    },
-
-    // Configurações Financeiras
-    financial: {
-      primaryCurrency: 'BRL',
-      secondaryCurrency: 'USD',
-      roundingMethod: 'normal',
-      dailySpendingLimit: '200',
-      weeklySpendingLimit: '1000',
-      monthlySpendingLimit: '5000',
-      enableSpendingLimits: false,
-    },
-    // Relatórios & Análises
-    analytics: {
-      backupFrequency: 'weekly',
-      defaultChartType: 'line',
-      analysisPeriodia: '6months',
-      smartAlerts: true,
-      predictiveInsights: true,
-      categoryTracking: true,
-      goalTracking: true,
-    },
-  });
+  // Estado local para configurações (para edição)
+  const [localSettings, setLocalSettings] = useState<UserSettings>(settings);
+  
+  // Perfil do usuário
+  const profile = {
+    name: localSettings.profile?.name || user?.user_metadata?.name || '',
+    email: user?.email || '',
+    avatar_url: localSettings.profile?.avatar_url || settings.profile?.avatar_url || user?.user_metadata?.avatar_url || '',
+  };
 
   const totalAccounts = banks.length;
   const totalTransactions = transactions.length;
@@ -104,13 +79,15 @@ const SettingsPage: React.FC = () => {
 
     // Validar tipo de arquivo
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecione apenas arquivos de imagem.');
+      setErrorMessage('Por favor, selecione apenas arquivos de imagem.');
+      setShowErrorModal(true);
       return;
     }
 
     // Validar tamanho (máximo 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      alert('A imagem deve ter no máximo 5MB.');
+      setErrorMessage('A imagem deve ter no máximo 5MB.');
+      setShowErrorModal(true);
       return;
     }
 
@@ -152,17 +129,32 @@ const SettingsPage: React.FC = () => {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      // Atualizar settings com a nova URL
-      setSettings(prev => ({
+      // Atualizar apenas o estado local (não salvar no banco ainda)
+      setLocalSettings(prev => ({
         ...prev,
         profile: { ...prev.profile, avatar_url: publicUrl }
       }));
+      
       setPreviewAvatar(null);
+      setHasUnsavedChanges(true);
 
       console.log('Avatar uploaded successfully:', publicUrl);
+      
+      // Mostrar toast de sucesso
+      setToast({
+        show: true,
+        type: 'success',
+        title: 'Avatar selecionado!',
+        message: 'Clique em "Salvar Configurações" para confirmar a alteração.'
+      });
     } catch (error) {
       console.error('Erro ao fazer upload do avatar:', error);
-      alert('Erro ao fazer upload da imagem. Tente novamente.');
+      setToast({
+        show: true,
+        type: 'error',
+        title: 'Erro no upload',
+        message: 'Não foi possível fazer upload da imagem. Tente novamente.'
+      });
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -175,9 +167,9 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleNotificationChange = (key: keyof typeof settings.notifications) => {
-    const newValue = !settings.notifications[key];
-    setSettings(prev => ({
+  const handleNotificationChange = (key: keyof typeof localSettings.notifications) => {
+    const newValue = !localSettings.notifications[key];
+    setLocalSettings(prev => ({
       ...prev,
       notifications: {
         ...prev.notifications,
@@ -198,12 +190,17 @@ const SettingsPage: React.FC = () => {
     };
     
     const notificationName = notificationNames[key];
-    console.log(`🔔 Notificação "${notificationName}" ${newValue ? 'ATIVADA' : 'DESATIVADA'}`);
+    console.log(`🔔 Notificação "${notificationName}" ${newValue ? 'ativada' : 'desativada'}`);
     setHasUnsavedChanges(true);
   };
 
-  const handlePreferenceChange = (key: keyof typeof settings.preferences, value: string) => {
-    setSettings(prev => ({
+  // Sincronizar configurações quando carregadas
+  useEffect(() => {
+    setLocalSettings(settings);
+  }, [settings]);
+
+  const handlePreferenceChange = (key: keyof typeof localSettings.preferences, value: string) => {
+    setLocalSettings(prev => ({
       ...prev,
       preferences: {
         ...prev.preferences,
@@ -237,8 +234,8 @@ const SettingsPage: React.FC = () => {
 
 
 
-  const handleFinancialChange = (key: keyof typeof settings.financial, value: string | boolean) => {
-    setSettings(prev => ({
+  const handleFinancialChange = (key: keyof typeof localSettings.financial, value: string | boolean) => {
+    setLocalSettings(prev => ({
       ...prev,
       financial: {
         ...prev.financial,
@@ -248,8 +245,8 @@ const SettingsPage: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  const handleAnalyticsChange = (key: keyof typeof settings.analytics, value: string | boolean) => {
-    setSettings(prev => ({
+  const handleAnalyticsChange = (key: keyof typeof localSettings.analytics, value: string | boolean) => {
+    setLocalSettings(prev => ({
       ...prev,
       analytics: {
         ...prev.analytics,
@@ -259,55 +256,100 @@ const SettingsPage: React.FC = () => {
     setHasUnsavedChanges(true);
   };
 
-  const handleProfileChange = (key: keyof typeof settings.profile, value: string) => {
-    setSettings(prev => ({
-      ...prev,
-      profile: {
-        ...prev.profile,
-        [key]: value,
-      },
-    }));
-    setHasUnsavedChanges(true);
+  const handleProfileChange = (key: keyof typeof profile, value: string) => {
+    // Atualizar apenas o nome do perfil localmente
+    if (key === 'name') {
+      // Atualizar o perfil local
+      const updatedProfile = { ...profile, [key]: value };
+      // Atualizar o estado local das configurações
+      setLocalSettings(prev => ({
+        ...prev,
+        profile: { ...prev.profile, [key]: value }
+      }));
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setLocalSettings(settings);
+    setIsEditing(false);
+    setPreviewAvatar(null);
+    setHasUnsavedChanges(false);
+    setValidationErrors([]);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleClearAllTransactions = () => {
+    setShowClearTransactionsModal(true);
+  };
+
+  const handleConfirmClearTransactions = async () => {
+    setIsClearingTransactions(true);
+    try {
+      await clearAllTransactions();
+      showSuccess(
+        'Transações Limpas', 
+        'Todas as transações foram removidas com sucesso. Esta ação não pode ser desfeita.'
+      );
+      setShowClearTransactionsModal(false);
+    } catch (error) {
+      console.error('Erro ao limpar transações:', error);
+      showError(
+        'Erro ao Limpar Transações', 
+        'Não foi possível limpar as transações. Tente novamente.'
+      );
+    } finally {
+      setIsClearingTransactions(false);
+    }
   };
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
+    setValidationErrors([]);
+    
     try {
-      // Salvar perfil no Supabase
-      await updateProfile({
-        name: settings.profile.name,
-        avatar_url: settings.profile.avatar_url,
-      });
+      // Validar configurações antes de salvar
+      const errors = validateSettings(localSettings);
+      if (errors.length > 0) {
+        setValidationErrors(errors);
+        setToast({
+          show: true,
+          type: 'error',
+          title: 'Erro de validação',
+          message: errors.join(', ')
+        });
+        return;
+      }
 
-      // Salvar configurações no localStorage
-      const configToSave = {
-        notifications: settings.notifications,
-        preferences: settings.preferences,
-        financial: settings.financial,
-        analytics: settings.analytics,
-        savedAt: new Date().toISOString()
-      };
+      // Salvar configurações no banco de dados
+      await saveSettings(localSettings);
+
+      // Salvar perfil no Supabase (se o nome ou avatar foi alterado)
+      const hasProfileChanges = profile.name !== user?.user_metadata?.name || 
+                               localSettings.profile?.avatar_url !== user?.user_metadata?.avatar_url;
       
-      localStorage.setItem('financeAppSettings', JSON.stringify(configToSave));
-
-      // Disparar evento customizado para notificar outros componentes
-      window.dispatchEvent(new CustomEvent('settingsUpdated', { 
-        detail: configToSave 
-      }));
+      if (hasProfileChanges) {
+        await updateProfile({
+          name: profile.name,
+          avatar_url: localSettings.profile?.avatar_url || profile.avatar_url,
+        });
+      }
 
       setIsEditing(false);
       setHasUnsavedChanges(false);
+      setPreviewAvatar(null);
       
-      // Mostrar feedback mais detalhado
+      // Mostrar feedback de sucesso
       const savedItems = [];
-      if (settings.profile.name !== user?.user_metadata?.name) savedItems.push('Perfil');
-      if (Object.values(settings.notifications).some(v => v)) savedItems.push('Notificações');
+      if (profile.name !== user?.user_metadata?.name) savedItems.push('Perfil');
+      savedItems.push('Notificações');
       savedItems.push('Preferências');
       savedItems.push('Configurações Financeiras');
       savedItems.push('Relatórios & Análises');
       
-      // Mostrar toast de sucesso
-      console.log('Mostrando toast de sucesso!');
       setToast({
         show: true,
         type: 'success',
@@ -327,24 +369,17 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  // Carregar configurações salvas no localStorage
-  React.useEffect(() => {
-    const savedSettings = localStorage.getItem('financeAppSettings');
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings(prev => ({
-          ...prev,
-          notifications: { ...prev.notifications, ...parsed.notifications },
-          preferences: { ...prev.preferences, ...parsed.preferences },
-          financial: { ...prev.financial, ...parsed.financial },
-          analytics: { ...prev.analytics, ...parsed.analytics },
-        }));
-      } catch (error) {
-        console.error('Erro ao carregar configurações salvas:', error);
-      }
-    }
-  }, []);
+  // Loading state
+  if (settingsLoading) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-8 p-4">
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-3 text-gray-600 dark:text-gray-400">Carregando configurações...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 p-4">
@@ -361,7 +396,7 @@ const SettingsPage: React.FC = () => {
         <div className="text-center space-y-4 mb-6">
           <div className="relative w-32 h-32 mx-auto">
             <img
-              src={previewAvatar || settings.profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(settings.profile.name || 'User')}&background=3b82f6&color=ffffff&size=128`}
+              src={previewAvatar || profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name || 'User')}&background=3b82f6&color=ffffff&size=128`}
               alt="Avatar"
               className="w-full h-full rounded-full object-cover border-4 border-blue-500 shadow-lg"
             />
@@ -425,7 +460,7 @@ const SettingsPage: React.FC = () => {
           {isEditing ? (
             <input
               type="text"
-              value={settings.profile.name}
+              value={profile.name}
               onChange={(e) => handleProfileChange('name', e.target.value)}
               className="text-center text-2xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-800 dark:text-white px-4 py-2"
               placeholder="Seu nome"
@@ -433,10 +468,10 @@ const SettingsPage: React.FC = () => {
             />
           ) : (
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-              {settings.profile.name || 'Usuário'}
+              {profile.name || 'Usuário'}
             </h2>
           )}
-          <p className="text-gray-600 dark:text-gray-400">{settings.profile.email}</p>
+          <p className="text-gray-600 dark:text-gray-400">{profile.email}</p>
           {isEditing && (
             <small className="block text-gray-500 dark:text-gray-400">
               O email não pode ser alterado
@@ -477,7 +512,7 @@ const SettingsPage: React.FC = () => {
           Notificações
         </h2>
         <div className="space-y-4">
-          {Object.entries(settings.notifications).map(([key, value]) => (
+          {Object.entries(localSettings.notifications).map(([key, value]) => (
             <div key={key} className="flex items-center justify-between">
               <span className="text-gray-600 dark:text-gray-400">
                 {key === 'dueBills' && 'Contas a vencer'}
@@ -493,7 +528,7 @@ const SettingsPage: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={value}
-                  onChange={() => handleNotificationChange(key as keyof typeof settings.notifications)}
+                  onChange={() => handleNotificationChange(key as keyof typeof localSettings.notifications)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
@@ -513,7 +548,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Conta padrão</span>
             <select
-              value={settings.preferences.defaultBank}
+              value={localSettings.preferences.defaultBank}
               onChange={(e) => handlePreferenceChange('defaultBank', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Conta padrão"
@@ -527,7 +562,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Visualização padrão</span>
             <select
-              value={settings.preferences.defaultView}
+              value={localSettings.preferences.defaultView}
               onChange={(e) => handlePreferenceChange('defaultView', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Visualização padrão"
@@ -541,7 +576,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Formato de data</span>
             <select
-              value={settings.preferences.dateFormat}
+              value={localSettings.preferences.dateFormat}
               onChange={(e) => handlePreferenceChange('dateFormat', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Formato de data"
@@ -566,77 +601,77 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Moeda primária</span>
             <select
-              value={settings.financial.primaryCurrency}
-                             onChange={(e) => handleFinancialChange('primaryCurrency', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Moeda primária"
-             >
-               <option value="BRL">Real</option>
-               <option value="USD">Dólar</option>
-             </select>
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Moeda secundária</span>
-             <select
-               value={settings.financial.secondaryCurrency}
-               onChange={(e) => handleFinancialChange('secondaryCurrency', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Moeda secundária"
-             >
-               <option value="BRL">Real</option>
-               <option value="USD">Dólar</option>
-             </select>
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Método de arredondamento</span>
-             <select
-               value={settings.financial.roundingMethod}
-               onChange={(e) => handleFinancialChange('roundingMethod', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Método de arredondamento"
-             >
-               <option value="normal">Normal</option>
-               <option value="up">Arredondar para cima</option>
-               <option value="down">Arredondar para baixo</option>
-             </select>
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Limite de gastos diários</span>
-             <input
-               type="number"
-               value={settings.financial.dailySpendingLimit}
-               onChange={(e) => handleFinancialChange('dailySpendingLimit', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Limite de gastos diários"
-             />
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Limite de gastos semanais</span>
-             <input
-               type="number"
-               value={settings.financial.weeklySpendingLimit}
-               onChange={(e) => handleFinancialChange('weeklySpendingLimit', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Limite de gastos semanais"
-             />
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Limite de gastos mensais</span>
-             <input
-               type="number"
-               value={settings.financial.monthlySpendingLimit}
-               onChange={(e) => handleFinancialChange('monthlySpendingLimit', e.target.value)}
-               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
-               aria-label="Limite de gastos mensais"
-             />
-           </div>
-           <div className="flex items-center justify-between">
-             <span className="text-gray-600 dark:text-gray-400">Habilitar limites de gastos</span>
-             <label className="relative inline-flex items-center cursor-pointer">
-               <input
-                 type="checkbox"
-                 checked={settings.financial.enableSpendingLimits}
-                 onChange={(e) => handleFinancialChange('enableSpendingLimits', e.target.checked)}
+              value={localSettings.financial.primaryCurrency}
+              onChange={(e) => handleFinancialChange('primaryCurrency', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Moeda primária"
+            >
+              <option value="BRL">Real</option>
+              <option value="USD">Dólar</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Moeda secundária</span>
+            <select
+              value={localSettings.financial.secondaryCurrency}
+              onChange={(e) => handleFinancialChange('secondaryCurrency', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Moeda secundária"
+            >
+              <option value="BRL">Real</option>
+              <option value="USD">Dólar</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Método de arredondamento</span>
+            <select
+              value={localSettings.financial.roundingMethod}
+              onChange={(e) => handleFinancialChange('roundingMethod', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Método de arredondamento"
+            >
+              <option value="normal">Normal</option>
+              <option value="up">Arredondar para cima</option>
+              <option value="down">Arredondar para baixo</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Limite de gastos diários</span>
+            <input
+              type="number"
+              value={localSettings.financial.dailySpendingLimit}
+              onChange={(e) => handleFinancialChange('dailySpendingLimit', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Limite de gastos diários"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Limite de gastos semanais</span>
+            <input
+              type="number"
+              value={localSettings.financial.weeklySpendingLimit}
+              onChange={(e) => handleFinancialChange('weeklySpendingLimit', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Limite de gastos semanais"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Limite de gastos mensais</span>
+            <input
+              type="number"
+              value={localSettings.financial.monthlySpendingLimit}
+              onChange={(e) => handleFinancialChange('monthlySpendingLimit', e.target.value)}
+              className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
+              aria-label="Limite de gastos mensais"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-gray-600 dark:text-gray-400">Habilitar limites de gastos</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localSettings.financial.enableSpendingLimits}
+                onChange={(e) => handleFinancialChange('enableSpendingLimits', e.target.checked)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
@@ -655,7 +690,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Frequência de backup</span>
             <select
-              value={settings.analytics.backupFrequency}
+              value={localSettings.analytics.backupFrequency}
               onChange={(e) => handleAnalyticsChange('backupFrequency', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Frequência de backup"
@@ -668,7 +703,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Tipo de gráfico padrão</span>
             <select
-              value={settings.analytics.defaultChartType}
+              value={localSettings.analytics.defaultChartType}
               onChange={(e) => handleAnalyticsChange('defaultChartType', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Tipo de gráfico padrão"
@@ -681,7 +716,7 @@ const SettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-gray-600 dark:text-gray-400">Período de análise</span>
             <select
-              value={settings.analytics.analysisPeriodia}
+              value={localSettings.analytics.analysisPeriodia}
               onChange={(e) => handleAnalyticsChange('analysisPeriodia', e.target.value)}
               className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-300 rounded-lg px-3 py-2"
               aria-label="Período de análise"
@@ -696,7 +731,7 @@ const SettingsPage: React.FC = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.analytics.smartAlerts}
+                checked={localSettings.analytics.smartAlerts}
                 onChange={(e) => handleAnalyticsChange('smartAlerts', e.target.checked)}
                 className="sr-only peer"
               />
@@ -708,7 +743,7 @@ const SettingsPage: React.FC = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.analytics.predictiveInsights}
+                checked={localSettings.analytics.predictiveInsights}
                 onChange={(e) => handleAnalyticsChange('predictiveInsights', e.target.checked)}
                 className="sr-only peer"
               />
@@ -720,7 +755,7 @@ const SettingsPage: React.FC = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.analytics.categoryTracking}
+                checked={localSettings.analytics.categoryTracking}
                 onChange={(e) => handleAnalyticsChange('categoryTracking', e.target.checked)}
                 className="sr-only peer"
               />
@@ -732,7 +767,7 @@ const SettingsPage: React.FC = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.analytics.goalTracking}
+                checked={localSettings.analytics.goalTracking}
                 onChange={(e) => handleAnalyticsChange('goalTracking', e.target.checked)}
                 className="sr-only peer"
               />
@@ -755,10 +790,60 @@ const SettingsPage: React.FC = () => {
         </div>
       )}
 
+      {/* Erros de Validação */}
+      {validationErrors.length > 0 && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
+            <AlertTriangle className="w-5 h-5" />
+            <span className="font-medium">Erros de validação</span>
+          </div>
+          <ul className="text-sm text-red-600 dark:text-red-400 mt-2 list-disc list-inside">
+            {validationErrors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Ações Perigosas */}
+      <section className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-xl p-6 shadow-lg">
+        <h2 className="text-xl font-semibold text-red-800 dark:text-red-300 mb-4 flex items-center gap-2">
+          <AlertTriangle className="w-6 h-6" />
+          Ações Perigosas
+        </h2>
+        <p className="text-sm text-red-600 dark:text-red-400 mb-6">
+          As ações abaixo são irreversíveis. Use com muito cuidado.
+        </p>
+        
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-lg border border-red-200 dark:border-red-700">
+            <div className="flex-1">
+              <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1">
+                Limpar Todas as Transações
+              </h3>
+              <p className="text-sm text-red-600 dark:text-red-400">
+                Remove permanentemente todas as transações de todos os meses. Esta ação não pode ser desfeita.
+              </p>
+              <p className="text-xs text-red-500 dark:text-red-400 mt-1">
+                Total de transações: {transactions.length}
+              </p>
+            </div>
+            <button
+              onClick={handleClearAllTransactions}
+              disabled={transactions.length === 0}
+              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
+              Limpar Todas
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Botões de Ação */}
       <div className="flex flex-col sm:flex-row justify-center gap-4">
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={isEditing ? handleCancelEdit : () => setIsEditing(true)}
           className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
         >
           {isEditing ? 'Cancelar Edição' : 'Editar Perfil'}
@@ -766,11 +851,11 @@ const SettingsPage: React.FC = () => {
         
         <button
           onClick={handleSaveSettings}
-          disabled={isSaving}
+          disabled={isSaving || !hasUnsavedChanges}
           className={`px-8 py-3 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 ${
             hasUnsavedChanges 
-              ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white animate-pulse' 
-              : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
+              ? 'bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white animate-pulse shadow-lg' 
+              : 'bg-gradient-to-r from-gray-400 to-gray-500 text-white cursor-not-allowed'
           }`}
         >
           {isSaving ? (
@@ -781,7 +866,7 @@ const SettingsPage: React.FC = () => {
           ) : (
             <>
               <Save className="w-5 h-5" />
-              {hasUnsavedChanges ? 'Salvar Alterações' : 'Salvar Configurações'}
+              {hasUnsavedChanges ? 'Salvar Alterações' : 'Nenhuma alteração'}
             </>
           )}
         </button>
@@ -795,6 +880,91 @@ const SettingsPage: React.FC = () => {
         message={toast.message}
         onClose={() => setToast(prev => ({ ...prev, show: false }))}
       />
+
+      {/* Modal de Erro */}
+      <Modal
+        isOpen={showErrorModal}
+        onClose={() => setShowErrorModal(false)}
+        title="Erro"
+        size="sm"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-gray-600 dark:text-gray-400 text-center mb-6">
+            {errorMessage}
+          </p>
+          <div className="flex justify-center">
+            <button
+              onClick={() => setShowErrorModal(false)}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Confirmação - Limpar Transações */}
+      <Modal
+        isOpen={showClearTransactionsModal}
+        onClose={() => setShowClearTransactionsModal(false)}
+        title="Confirmar Limpeza de Transações"
+        size="md"
+      >
+        <div className="p-6">
+          <div className="flex items-center justify-center mb-4">
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
+            </div>
+          </div>
+          
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">
+              Atenção! Esta ação é irreversível
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Você está prestes a remover <strong>{transactions.length} transações</strong> de todos os meses.
+            </p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
+              <p className="text-sm text-red-700 dark:text-red-300">
+                <strong>⚠️ Importante:</strong> Esta ação não pode ser desfeita. Todas as transações serão permanentemente removidas do sistema.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => setShowClearTransactionsModal(false)}
+              className="bg-gray-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-gray-600 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmClearTransactions}
+              disabled={isClearingTransactions}
+              className="bg-red-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              {isClearingTransactions ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Limpando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Sim, Limpar Todas
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

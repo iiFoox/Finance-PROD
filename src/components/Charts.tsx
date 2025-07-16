@@ -15,6 +15,7 @@ import {
 import { Line, Bar, Pie } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
 import { useFinance } from '../contexts/FinanceContext';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 ChartJS.register(
   CategoryScale,
@@ -59,30 +60,90 @@ const chartOptions = {
   },
 };
 
-export const ExpenseLineChart: React.FC = () => {
+interface ExpenseLineChartProps {
+  expanded?: boolean;
+  transactionType?: 'expense' | 'income' | 'all';
+}
+
+export const ExpenseLineChart: React.FC<ExpenseLineChartProps> = ({ 
+  expanded = false, 
+  transactionType = 'expense' 
+}) => {
   const { getCurrentMonthTransactions, selectedYear, selectedMonth } = useFinance();
+  const { formatCurrency, formatDate } = useAppSettings();
   
-  const transactions = getCurrentMonthTransactions().filter(t => t.type === 'expense');
+  const allTransactions = getCurrentMonthTransactions();
+  const transactions = transactionType === 'all' 
+    ? allTransactions 
+    : allTransactions.filter(t => t.type === transactionType);
+  
   const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
   
-  const dailyExpenses = Array(daysInMonth).fill(0);
+
+  
+  const dailyAmounts = Array(daysInMonth).fill(0);
   transactions.forEach(t => {
     const day = t.date.getDate() - 1;
-    dailyExpenses[day] += t.amount;
+    dailyAmounts[day] += t.amount;
   });
+
+  // Se expandido, mostrar cada categoria separadamente
+  const categoryAmounts: Record<string, number[]> = {};
+  
+  if (expanded) {
+    // Inicializar arrays para cada categoria
+    transactions.forEach(t => {
+      if (!categoryAmounts[t.category]) {
+        categoryAmounts[t.category] = Array(daysInMonth).fill(0);
+      }
+    });
+    
+    // Preencher dados por categoria
+    transactions.forEach(t => {
+      const day = t.date.getDate() - 1;
+      categoryAmounts[t.category][day] += t.amount;
+    });
+    
+
+  }
+
+  const colors = [
+    '#6366f1', '#34d399', '#f97316', '#ef4444', 
+    '#a78bfa', '#ec4899', '#9ca3af', '#fbbf24'
+  ];
+
+  const getChartTitle = () => {
+    switch (transactionType) {
+      case 'income': return 'Receitas Diárias';
+      case 'expense': return 'Despesas Diárias';
+      case 'all': return 'Fluxo de Caixa Diário';
+      default: return 'Transações Diárias';
+    }
+  };
+
+  const datasets = expanded 
+    ? Object.entries(categoryAmounts).map(([category, data], index) => ({
+        label: category,
+        data,
+        borderColor: colors[index % colors.length],
+        backgroundColor: `${colors[index % colors.length]}20`,
+        fill: false,
+        tension: 0.4,
+      }))
+    : [{
+        label: getChartTitle(),
+        data: dailyAmounts,
+        borderColor: transactionType === 'income' ? '#34d399' : transactionType === 'expense' ? '#ef4444' : '#6366f1',
+        backgroundColor: transactionType === 'income' ? 'rgba(52, 211, 153, 0.2)' : transactionType === 'expense' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+        fill: true,
+        tension: 0.4,
+      }];
+
+
 
   const data = {
     labels: Array.from({ length: daysInMonth }, (_, i) => i + 1),
-    datasets: [
-      {
-        label: 'Despesas Diárias',
-        data: dailyExpenses,
-        borderColor: '#6366f1',
-        backgroundColor: 'rgba(99, 102, 241, 0.2)',
-        fill: true,
-        tension: 0.4,
-      },
-    ],
+    datasets,
   };
 
   const lineOptions = {
@@ -91,13 +152,32 @@ export const ExpenseLineChart: React.FC = () => {
       ...chartOptions.plugins,
       tooltip: {
         callbacks: {
+          title: function(context: any) {
+            const dayIndex = context[0].dataIndex;
+            const date = new Date(selectedYear, selectedMonth, dayIndex + 1);
+            return formatDate(date);
+          },
           label: function(context: any) {
             const value = context.parsed.y;
-            const formattedValue = value.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            });
-            return `${context.dataset.label}: ${formattedValue}`;
+            const formattedValue = formatCurrency(value);
+            
+            // Buscar a descrição da transação para este dia e categoria
+            const dayIndex = context.dataIndex;
+            const category = context.dataset.label;
+            const transaction = transactions.find(t => 
+              t.category === category && 
+              t.date.getDate() === dayIndex + 1
+            );
+            
+            const description = transaction ? transaction.description : '';
+            
+            // Se não há descrição, retorna apenas a categoria e valor
+            if (!description) {
+              return `${category}: ${formattedValue}`;
+            }
+            
+            // Se há descrição, adiciona separador para melhor formatação
+            return `${description} - ${category}: ${formattedValue}`;
           }
         }
       }
@@ -109,10 +189,7 @@ export const ExpenseLineChart: React.FC = () => {
         ticks: {
           ...chartOptions.scales.y.ticks,
           callback: function(value: any) {
-            return value.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            });
+            return formatCurrency(value);
           }
         }
       }
@@ -124,6 +201,7 @@ export const ExpenseLineChart: React.FC = () => {
 
 export const CategoryPieChart: React.FC = () => {
   const { getCurrentMonthTransactions } = useFinance();
+  const { formatCurrency } = useAppSettings();
   
   const expenses = getCurrentMonthTransactions().filter(t => t.type === 'expense');
   const categoryTotals: Record<string, number> = {};
@@ -156,10 +234,7 @@ export const CategoryPieChart: React.FC = () => {
         callbacks: {
           label: function(context: any) {
             const value = context.parsed;
-            const formattedValue = value.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            });
+            const formattedValue = formatCurrency(value);
             return `${context.label}: ${formattedValue}`;
           }
         }
@@ -172,6 +247,7 @@ export const CategoryPieChart: React.FC = () => {
 
 export const MonthlyComparisonChart: React.FC = () => {
   const { transactions, selectedYear, selectedMonth } = useFinance();
+  const { formatCurrency } = useAppSettings();
   
   const currentMonthExpenses = transactions.filter(t => 
     t.type === 'expense' &&
@@ -227,10 +303,7 @@ export const MonthlyComparisonChart: React.FC = () => {
         callbacks: {
           label: function(context: any) {
             const value = context.parsed.y;
-            const formattedValue = value.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            });
+            const formattedValue = formatCurrency(value);
             return `${context.dataset.label}: ${formattedValue}`;
           }
         }
@@ -243,10 +316,7 @@ export const MonthlyComparisonChart: React.FC = () => {
         ticks: {
           ...chartOptions.scales.y.ticks,
           callback: function(value: any) {
-            return value.toLocaleString('pt-BR', {
-              style: 'currency',
-              currency: 'BRL'
-            });
+            return formatCurrency(value);
           }
         }
       }
