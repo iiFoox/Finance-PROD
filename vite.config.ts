@@ -4,6 +4,7 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: './', // Corrige assets em rotas internas
   plugins: [react()],
   resolve: {
     alias: {
