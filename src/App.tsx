@@ -25,6 +25,7 @@ import IntegracoesPage from './pages/IntegracoesPage';
 import AjudaPage from './pages/AjudaPage';
 import DocumentacaoPage from './pages/DocumentacaoPage';
 import StatusPage from './pages/StatusPage';
+import TestPage from './pages/TestPage';
 
 // PrivateRoute protege as rotas que exigem autenticação
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -75,6 +76,7 @@ const AppContent: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/test" element={<TestPage />} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
