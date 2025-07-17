@@ -74,21 +74,21 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const AppContent: React.FC = () => {
   return (
     <Routes>
-      <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       
-      {/* Páginas Públicas */}
-      <Route path="/recursos" element={<PublicRoute><RecursosPage /></PublicRoute>} />
-      <Route path="/precos" element={<PublicRoute><PrecosPage /></PublicRoute>} />
-      <Route path="/contato" element={<PublicRoute><ContatoPage /></PublicRoute>} />
-      <Route path="/sobre" element={<PublicRoute><SobrePage /></PublicRoute>} />
-      <Route path="/integracoes" element={<PublicRoute><IntegracoesPage /></PublicRoute>} />
-      <Route path="/ajuda" element={<PublicRoute><AjudaPage /></PublicRoute>} />
-      <Route path="/documentacao" element={<PublicRoute><DocumentacaoPage /></PublicRoute>} />
-      <Route path="/status" element={<PublicRoute><StatusPage /></PublicRoute>} />
+      {/* Páginas Públicas - Removido PublicRoute para funcionar no Vercel */}
+      <Route path="/recursos" element={<RecursosPage />} />
+      <Route path="/precos" element={<PrecosPage />} />
+      <Route path="/contato" element={<ContatoPage />} />
+      <Route path="/sobre" element={<SobrePage />} />
+      <Route path="/integracoes" element={<IntegracoesPage />} />
+      <Route path="/ajuda" element={<AjudaPage />} />
+      <Route path="/documentacao" element={<DocumentacaoPage />} />
+      <Route path="/status" element={<StatusPage />} />
       
       {/* Rotas Privadas */}
       <Route path="/dashboard" element={<PrivateRoute><Layout><DashboardPage /></Layout></PrivateRoute>} />

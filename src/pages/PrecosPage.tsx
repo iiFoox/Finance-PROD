@@ -175,6 +175,8 @@ const PrecosPage: React.FC = () => {
               className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
                 billingCycle === 'yearly' ? 'bg-blue-500' : 'bg-gray-600'
               }`}
+              aria-label={`Alternar para plano ${billingCycle === 'monthly' ? 'anual' : 'mensal'}`}
+              title={`Alternar para plano ${billingCycle === 'monthly' ? 'anual' : 'mensal'}`}
             >
               <span
                 className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
